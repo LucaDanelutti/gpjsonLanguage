@@ -16,7 +16,7 @@ public final class GpJSONLanguage extends TruffleLanguage<GpJSONContext> {
 
     @Override
     protected GpJSONContext createContext(Env env) {
-        return new GpJSONContext(env);
+        return new GpJSONContext();
     }
 }
 

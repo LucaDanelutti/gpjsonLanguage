@@ -17,7 +17,6 @@ import java.util.logging.Level;
 
 @ExportLibrary(InteropLibrary.class)
 public class Engine implements TruffleObject {
-
     private final Value cu;
     Map<String,Value> kernels = new HashMap<>();
 

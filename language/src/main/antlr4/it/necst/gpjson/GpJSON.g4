@@ -5,7 +5,7 @@ grammar GpJSON ;
 import java.util.ArrayList;
 import java.util.Optional;
 import it.necst.gpjson.nodes.ExpressionNode;
-import it.necst.gpjson.nodes.NewObjectNode;
+import it.necst.gpjson.nodes.EngineNode;
 import it.necst.gpjson.parser.GpJSONParserException;
 import it.necst.gpjson.parser.NodeFactory;
 import it.necst.gpjson.GpJSONLanguage;
@@ -58,11 +58,11 @@ private static class ParserErrorListener extends BaseErrorListener {
 
 // parser
 expr returns [ExpressionNode result]
-  : createExp EOF    { $result = $createExp.result; }
+  : engine EOF    { $result = $engine.result; }
   ;
 
-createExp returns [NewObjectNode result]
-  :  'new' ' ' name=Identifier '()'        { $result = factory.createNewObjectNode($name); }
+engine returns [EngineNode result]
+  :  'GJ'        { $result = factory.createEngineNode(); }
   ;
 
 // lexer
