@@ -7,7 +7,7 @@ import it.necst.gpjson.nodes.GpJSONRootNode;
 import it.necst.gpjson.parser.ParserAntlr;
 
 @TruffleLanguage.Registration(id = "gpjson", name = "gpjson")
-public final class GpJSONLanguage extends TruffleLanguage<Void> {
+public final class GpJSONLanguage extends TruffleLanguage<GpJSONContext> {
     protected CallTarget parse(ParsingRequest request) throws Exception {
         ExpressionNode exprNode = new ParserAntlr().parse(request.getSource());
         GpJSONRootNode rootNode = new GpJSONRootNode(this, exprNode);
@@ -15,8 +15,8 @@ public final class GpJSONLanguage extends TruffleLanguage<Void> {
     }
 
     @Override
-    protected Void createContext(Env env) {
-        return null;
+    protected GpJSONContext createContext(Env env) {
+        return new GpJSONContext(env);
     }
 }
 

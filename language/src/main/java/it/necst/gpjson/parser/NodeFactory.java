@@ -1,8 +1,8 @@
 package it.necst.gpjson.parser;
 
 import com.oracle.truffle.api.source.Source;
-import it.necst.gpjson.nodes.TestNode;
-import it.necst.gpjson.nodes.TestNodeGen;
+import it.necst.gpjson.nodes.NewObjectNode;
+import it.necst.gpjson.nodes.NewObjectNodeGen;
 import org.antlr.v4.runtime.Token;
 
 public class NodeFactory {
@@ -13,7 +13,7 @@ public class NodeFactory {
         this.source = source;
     }
 
-    public TestNode createTestNode(Token identifierToken) {
-        return TestNodeGen.create(identifierToken.getText());
+    public NewObjectNode createNewObjectNode(Token identifierToken) {
+        return NewObjectNodeGen.create(identifierToken.getText());
     }
 }
