@@ -33,11 +33,9 @@ public class Engine implements TruffleObject {
                 .newBuilder()
                 .allowAllAccess(true)
                 .allowExperimentalOptions(true)
-                //.option("grcuda.EnableComputationTimers", "true")
-                .option("grcuda.ExecutionPolicy", "sync")
+                .option("grcuda.ExecutionPolicy", "async")
                 // logging settings
                 .option("log.grcuda.com.nvidia.grcuda.level", "FINER")
-                .option("log.grcuda.com.nvidia.grcuda.GrCUDAContext.level", "INFO")
                 .build();
         LOGGER.log(Level.FINE, "grcuda context created");
         cu = polyglot.eval("grcuda", "CU");
