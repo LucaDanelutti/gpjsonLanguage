@@ -46,7 +46,7 @@
         <artifactId>gpjsonLanguage-parent</artifactId>
         <version>0.2</version>
     </parent>
-    <artifactId>gpjsonLanguage</artifactId>
+    <artifactId>gpjson</artifactId>
     <properties>
         <jar.dir>${project.build.directory}/jars</jar.dir>
         <test.argLine>--upgrade-module-path='${jar.dir}/truffle-api.jar' --add-opens org.graalvm.sdk/org.graalvm.polyglot=ALL-UNNAMED --add-exports java.base/jdk.internal.module=ALL-UNNAMED</test.argLine>
@@ -116,7 +116,7 @@
                             <goal>shade</goal>
                         </goals>
                         <configuration>
-                            <finalName>gpjsonLanguage</finalName>
+                            <finalName>gpjson</finalName>
                             <artifactSet>
                                 <excludes>
                                     <exclude>junit:junit</exclude>
