@@ -66,7 +66,7 @@ public class Engine implements TruffleObject {
         }
     }
 
-    public Result query(String fileName, String[] queries, boolean combined, int numLevels) {
+    public Result query(String fileName, String[] queries, boolean combined) {
         if (kernels.isEmpty()) buildKernels();
         ExecutionContext exContext;
 
@@ -75,27 +75,13 @@ public class Engine implements TruffleObject {
         else
             exContext = new ExecutionContextUncombined(cu, kernels, fileName);
 
-        Result result = new Result();
-        for (int i=0; i< queries.length; i++) {
-            String query = queries[i];
-            try {
-                result.addQuery(exContext.execute(query), exContext.getFileBuffer());
-                LOGGER.log(Level.FINE, query + " executed successfully");
-            } catch (UnsupportedJSONPathException e) {
-                LOGGER.log(Level.FINE, "Unsupported JSONPath query '" + query + "'. Falling back to cpu execution");
-                FallbackExecutionContext fallbackExecutionContext= new FallbackExecutionContext(fileName);
-                result.addFallbackQuery(fallbackExecutionContext.execute(query));
-                LOGGER.log(Level.FINE, query + " executed successfully (fallback to cpu)");
-            }
-        }
-
-        return result;
+        return exContext.execute(queries);
     }
 
     public void query(String filename, String query, boolean combined, int numLevels) {
         String[] queries = new String[1];
         queries[0] = query;
-        this.query(filename, queries, combined, numLevels);
+        this.query(filename, queries, combined);
     }
 
     @ExportMessage
@@ -133,7 +119,7 @@ public class Engine implements TruffleObject {
                 String[] queries = InvokeUtils.expectStringArray(arguments[1], "argument 2 of query must be an array of strings");
                 boolean combined = InvokeUtils.expectBoolean(arguments[2], "argument 3 of query must be a boolean");
                 int numLevels = InvokeUtils.expectInt(arguments[3], "argument 3 of query must be an int");
-                return this.query(file, queries, combined, numLevels);
+                return this.query(file, queries, combined);
             default:
                 throw UnknownIdentifierException.create(member);
         }
