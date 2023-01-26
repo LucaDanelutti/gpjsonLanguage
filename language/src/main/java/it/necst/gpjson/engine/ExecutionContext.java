@@ -1,7 +1,8 @@
 package it.necst.gpjson.engine;
 
+import com.oracle.truffle.api.TruffleLogger;
 import it.necst.gpjson.GpJSONException;
-import it.necst.gpjson.MyLogger;
+import it.necst.gpjson.GpJSONLogger;
 import it.necst.gpjson.jsonpath.*;
 import org.graalvm.polyglot.Value;
 
@@ -18,6 +19,8 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 
+import static it.necst.gpjson.GpJSONLogger.GPJSON_LOGGER;
+
 public abstract class ExecutionContext {
     protected final Value cu;
     protected final Map<String,Value> kernels;
@@ -33,6 +36,8 @@ public abstract class ExecutionContext {
     protected long levelSize;
     protected long numLevels;
     private boolean isIndexed = false;
+
+    private static final TruffleLogger LOGGER = GpJSONLogger.getLogger(GPJSON_LOGGER);
 
     public ExecutionContext(Value cu, Map<String,Value> kernels, String fileName) {
         this.cu = cu;
@@ -67,7 +72,7 @@ public abstract class ExecutionContext {
         } catch (IOException e) {
             throw new GpJSONException("Failed to open file");
         }
-        MyLogger.log(Level.FINER, "ExecutionContext", "loadFile()", "loadFile() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+        LOGGER.log(Level.FINER, "loadFile() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         isLoaded = true;
     }
 
@@ -78,22 +83,22 @@ public abstract class ExecutionContext {
         long start;
         start = System.nanoTime();
         this.createNewlineStringIndex();
-        MyLogger.log(Level.FINER, "ExecutionContext", "buildIndexes()", "createNewlineStringIndex() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+        LOGGER.log(Level.FINER, "createNewlineStringIndex() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         start = System.nanoTime();
         this.createLeveledBitmapsIndex();
-        MyLogger.log(Level.FINER, "ExecutionContext", "buildIndexes()", "createLeveledBitmapsIndex() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+        LOGGER.log(Level.FINER, "createLeveledBitmapsIndex() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         isIndexed = true;
     }
 
     public long[][] execute(String query) throws UnsupportedJSONPathException {
         long start = System.nanoTime();
         JSONPathResult compiledQuery = this.compileQuery(query);
-        MyLogger.log(Level.FINER, "ExecutionContext", "execute()", "compileQuery() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+        LOGGER.log(Level.FINER, "compileQuery() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         if (!isIndexed || numLevels < compiledQuery.getMaxDepth())
             this.buildIndexes(compiledQuery.getMaxDepth());
         start = System.nanoTime();
         long[][] resultIndexes = this.query(compiledQuery);
-        MyLogger.log(Level.FINER, "ExecutionContext", "execute()", "query() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+        LOGGER.log(Level.FINER, "query() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         return resultIndexes;
     }
 
@@ -101,7 +106,7 @@ public abstract class ExecutionContext {
         long[][] resultIndexes = execute(query);
         long start = System.nanoTime();
         List<List<String>> resultsString = this.fetchResults(resultIndexes);
-        MyLogger.log(Level.FINER, "ExecutionContext", "executeAndGetStrings()", "fetchResults() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+        LOGGER.log(Level.FINER, "fetchResults() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         return resultsString;
     }
 

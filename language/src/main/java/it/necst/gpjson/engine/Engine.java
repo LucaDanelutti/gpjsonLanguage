@@ -1,6 +1,7 @@
 package it.necst.gpjson.engine;
 
 import com.oracle.truffle.api.CompilerDirectives;
+import com.oracle.truffle.api.TruffleLogger;
 import com.oracle.truffle.api.interop.*;
 import com.oracle.truffle.api.library.ExportLibrary;
 import com.oracle.truffle.api.library.ExportMessage;
@@ -18,13 +19,16 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 
+import static it.necst.gpjson.GpJSONLogger.GPJSON_LOGGER;
+
 @ExportLibrary(InteropLibrary.class)
 public class Engine implements TruffleObject {
     private final Value cu;
     Map<String,Value> kernels = new HashMap<>();
 
+    private static final TruffleLogger LOGGER = GpJSONLogger.getLogger(GPJSON_LOGGER);
+
     public Engine() {
-        MyLogger.setLevel(Level.FINER);
         final Context polyglot = Context
                 .newBuilder()
                 .allowAllAccess(true)
@@ -35,9 +39,9 @@ public class Engine implements TruffleObject {
                 .option("log.grcuda.com.nvidia.grcuda.level", "FINER")
                 .option("log.grcuda.com.nvidia.grcuda.GrCUDAContext.level", "INFO")
                 .build();
-        MyLogger.log(Level.FINE, "Engine", "()", "grcuda context created");
+        LOGGER.log(Level.FINE, "grcuda context created");
         cu = polyglot.eval("grcuda", "CU");
-        MyLogger.log(Level.FINE, "Engine", "()", "Engine created");
+        LOGGER.log(Level.FINE, "Engine created");
     }
 
     public void buildKernels() {
@@ -60,7 +64,7 @@ public class Engine implements TruffleObject {
                     throw new GpJSONInternalException("cannot read from " + kernel.getFilename());
                 }
             }
-            MyLogger.log(Level.FINER, "Engine", "buildKernels()", "buildKernels() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+            LOGGER.log(Level.FINER, "buildKernels() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         }
     }
 
@@ -78,14 +82,14 @@ public class Engine implements TruffleObject {
             String query = queries[i];
             try {
                 indexes[i] = exContext.execute(query);
-                MyLogger.log(Level.FINE, "Engine", "call()", query + " executed successfully");
+                LOGGER.log(Level.FINE, query + " executed successfully");
             } catch (UnsupportedJSONPathException e) {
-                MyLogger.log(Level.FINE, "Engine", "call()", "Unsupported JSONPath query '" + query + "'. Falling back to cpu execution");
+                LOGGER.log(Level.FINE, "Unsupported JSONPath query '" + query + "'. Falling back to cpu execution");
                 FallbackExecutionContext fallbackExecutionContext= new FallbackExecutionContext(fileName);
                 List<List<String>> resultStrings = fallbackExecutionContext.execute(query);
-                MyLogger.log(Level.FINE, "Engine", "call()", query + " executed successfully (fallback to cpu) with " + resultStrings.size() + " results");
+                LOGGER.log(Level.FINE, query + " executed successfully (fallback to cpu) with " + resultStrings.size() + " results");
                 if (resultStrings.size() < 50)
-                    MyLogger.log(Level.FINER, "Engine", "call()", resultStrings.toString());
+                    LOGGER.log(Level.FINER, resultStrings.toString());
             }
         }
 
