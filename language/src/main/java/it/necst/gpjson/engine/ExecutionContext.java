@@ -1,11 +1,22 @@
 package it.necst.gpjson.engine;
 
 import com.jayway.jsonpath.*;
+import com.oracle.truffle.api.CompilerDirectives;
 import com.oracle.truffle.api.TruffleLogger;
+import com.oracle.truffle.api.interop.InteropLibrary;
+import com.oracle.truffle.api.interop.TruffleObject;
+import com.oracle.truffle.api.interop.UnknownIdentifierException;
+import com.oracle.truffle.api.interop.UnsupportedTypeException;
+import com.oracle.truffle.api.library.ExportLibrary;
+import com.oracle.truffle.api.library.ExportMessage;
 import it.necst.gpjson.GpJSONException;
 import it.necst.gpjson.GpJSONLogger;
+import it.necst.gpjson.InvokeUtils;
 import it.necst.gpjson.jsonpath.*;
 import it.necst.gpjson.result.Result;
+import it.necst.gpjson.result.ResultFallbackQuery;
+import it.necst.gpjson.result.ResultGPJSONQuery;
+import it.necst.gpjson.result.ResultQuery;
 import org.graalvm.polyglot.Value;
 
 import java.io.IOException;
@@ -25,7 +36,8 @@ import java.util.stream.Stream;
 
 import static it.necst.gpjson.GpJSONLogger.GPJSON_LOGGER;
 
-public abstract class ExecutionContext {
+@ExportLibrary(InteropLibrary.class)
+public abstract class ExecutionContext implements TruffleObject {
     protected final Value cu;
     protected final Map<String,Value> kernels;
     protected final int gridSize = 8; //8 or 512
@@ -53,7 +65,7 @@ public abstract class ExecutionContext {
         this.fileName = fileName;
     }
 
-    public void loadFile() {
+    private void loadFile() {
         if (!isLoaded) {
             long start;
             start = System.nanoTime();
@@ -82,7 +94,7 @@ public abstract class ExecutionContext {
         }
     }
 
-    public void buildIndexes(long numLevels) {
+    private void buildIndexes(long numLevels) {
         if (!isIndexed || numLevels > this.numLevels) {
             if (!isLoaded)
                 throw new GpJSONException("You must load the file before indexing");
@@ -98,7 +110,7 @@ public abstract class ExecutionContext {
         }
     }
 
-    public Result execute(String[] queries) {
+    public Result query(String[] queries) {
         this.loadFile();
         JSONPathResult[] compiledQueries = new JSONPathResult[queries.length];
         int maxDepth = 0;
@@ -200,6 +212,74 @@ public abstract class ExecutionContext {
             }).collect(Collectors.toList());
         } catch (IOException e) {
             throw new GpJSONException("Failed to read file");
+        }
+    }
+
+    private ResultQuery query(String query) {
+        JSONPathResult compiledQuery;
+        try {
+            compiledQuery = this.compileQuery(query);
+        } catch (UnsupportedJSONPathException e) {
+            LOGGER.log(Level.FINE, "Unsupported JSONPath query '" + query + "'. Falling back to cpu execution");
+            compiledQuery = null;
+        } catch (JSONPathException e) {
+            throw new GpJSONException("Error parsing query: " + query);
+        }
+
+        ResultQuery result;
+        if (compiledQuery != null) {
+            long[][] values = this.query(compiledQuery);
+            result = new ResultGPJSONQuery(values.length, values, fileBuffer);
+            LOGGER.log(Level.FINE, query + " executed successfully");
+        } else {
+            result = new ResultFallbackQuery(this.fallbackQuery(query));
+            LOGGER.log(Level.FINE, query + " executed successfully (cpu fallback)");
+        }
+        return result;
+    }
+
+    @ExportMessage
+    @SuppressWarnings("static-method")
+    public boolean hasMembers() {
+        return true;
+    }
+
+    @ExportMessage
+    @SuppressWarnings("static-method")
+    public Object getMembers(@SuppressWarnings("unused") boolean includeInternal) {
+        return new String[] {"loadFile", "buildIndexes", "query"};
+    }
+
+    @ExportMessage
+    @CompilerDirectives.TruffleBoundary
+    public boolean isMemberInvocable(String member) {
+        return "loadFile".equals(member) | "buildIndexes".equals(member) | "query".equals(member);
+    }
+
+    @ExportMessage
+    public Object invokeMember(String member, Object[] arguments) throws UnknownIdentifierException, UnsupportedTypeException {
+        switch (member) {
+            case "loadFile":
+                if (arguments.length != 0) {
+                    throw new GpJSONException("loadFile" + " function requires 0 arguments");
+                }
+                this.loadFile();
+                return this;
+            case "buildIndexes":
+                if (arguments.length != 1) {
+                    throw new GpJSONException("buildIndexes" + " function requires 1 argument");
+                }
+                int depth = InvokeUtils.expectInt(arguments[0], "argument 1 of " + "buildIndexes" + " must be an int");
+                this.buildIndexes(depth);
+                return this;
+            case "query":
+                if (arguments.length != 1) {
+                    throw new GpJSONException("query" + " function requires 1 arguments");
+                }
+                String query = InvokeUtils.expectString(arguments[0], "argument 1 of " + "query" + " must be a string");
+                return this.query(query);
+            default:
+                throw UnknownIdentifierException.create(member);
         }
     }
 }

@@ -6,7 +6,6 @@ import com.oracle.truffle.api.interop.*;
 import com.oracle.truffle.api.library.ExportLibrary;
 import com.oracle.truffle.api.library.ExportMessage;
 import it.necst.gpjson.*;
-import it.necst.gpjson.jsonpath.UnsupportedJSONPathException;
 import it.necst.gpjson.kernel.GpJSONKernel;
 import it.necst.gpjson.result.Result;
 import org.graalvm.polyglot.Context;
@@ -66,7 +65,7 @@ public class Engine implements TruffleObject {
         }
     }
 
-    public Result query(String fileName, String[] queries, boolean combined) {
+    private Result query(String fileName, String[] queries, boolean combined) {
         if (kernels.isEmpty()) buildKernels();
         ExecutionContext exContext;
 
@@ -75,13 +74,14 @@ public class Engine implements TruffleObject {
         else
             exContext = new ExecutionContextUncombined(cu, kernels, fileName);
 
-        return exContext.execute(queries);
+        return exContext.query(queries);
     }
 
-    public void query(String filename, String query, boolean combined, int numLevels) {
-        String[] queries = new String[1];
-        queries[0] = query;
-        this.query(filename, queries, combined);
+    private ExecutionContext createContext(String fileName, boolean combined) {
+        if (combined)
+            return new ExecutionContextCombined(cu, kernels, fileName);
+        else
+            return new ExecutionContextUncombined(cu, kernels, fileName);
     }
 
     @ExportMessage
@@ -93,13 +93,13 @@ public class Engine implements TruffleObject {
     @ExportMessage
     @SuppressWarnings("static-method")
     public Object getMembers(@SuppressWarnings("unused") boolean includeInternal) {
-        return new String[] {"buildKernels", "query"};
+        return new String[] {"buildKernels", "query", "createContext"};
     }
 
     @ExportMessage
     @CompilerDirectives.TruffleBoundary
     public boolean isMemberInvocable(String member) {
-        return "buildKernels".equals(member) | "query".equals(member);
+        return "buildKernels".equals(member) | "query".equals(member) | "createContext".equals(member);
     }
 
     @ExportMessage
@@ -112,14 +112,20 @@ public class Engine implements TruffleObject {
                 this.buildKernels();
                 return this;
             case "query":
-                if ((arguments.length != 3) && (arguments.length != 4)) {
-                    throw new GpJSONException("query function requires 3 or 4 arguments");
+                if ((arguments.length != 3)) {
+                    throw new GpJSONException("query function requires 3 arguments");
                 }
                 String file = InvokeUtils.expectString(arguments[0], "argument 1 of query must be a string");
                 String[] queries = InvokeUtils.expectStringArray(arguments[1], "argument 2 of query must be an array of strings");
                 boolean combined = InvokeUtils.expectBoolean(arguments[2], "argument 3 of query must be a boolean");
-                int numLevels = InvokeUtils.expectInt(arguments[3], "argument 3 of query must be an int");
                 return this.query(file, queries, combined);
+            case "createContext":
+                if ((arguments.length != 2)) {
+                    throw new GpJSONException("createContext function requires 2 arguments");
+                }
+                file = InvokeUtils.expectString(arguments[0], "argument 1 of createContext must be a string");
+                combined = InvokeUtils.expectBoolean(arguments[1], "argument 2 of createContext must be a boolean");
+                return this.createContext(file, combined);
             default:
                 throw UnknownIdentifierException.create(member);
         }
