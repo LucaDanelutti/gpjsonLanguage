@@ -7,24 +7,18 @@ import com.oracle.truffle.api.interop.TruffleObject;
 import com.oracle.truffle.api.library.ExportLibrary;
 import com.oracle.truffle.api.library.ExportMessage;
 
-import java.nio.MappedByteBuffer;
-import java.util.ArrayList;
-import java.util.List;
+import java.nio.charset.StandardCharsets;
 
 @ExportLibrary(InteropLibrary.class)
-public class Result implements TruffleObject {
-    private final List<ResultQuery> resultQueries;
+public class ResultGPJSONLine implements TruffleObject {
+    private final ResultGPJSONQuery array;
+    private final long lineIndex;
+    private final int numResults;
 
-    public Result() {
-        this.resultQueries = new ArrayList<>();
-    }
-
-    public void addQuery(long[][] values, MappedByteBuffer file) {
-        resultQueries.add(new ResultGPJSONQuery(values.length, values, file));
-    }
-
-    public void addFallbackQuery(List<List<String>> values) {
-        resultQueries.add(new ResultFallbackQuery(values));
+    public ResultGPJSONLine(ResultGPJSONQuery array, long lineIndex, int numResults) {
+        this.array = array;
+        this.lineIndex = lineIndex;
+        this.numResults = numResults;
     }
 
     @ExportMessage
@@ -37,23 +31,35 @@ public class Result implements TruffleObject {
     @SuppressWarnings("unused")
     @CompilerDirectives.TruffleBoundary
     public Object readArrayElement(long index) throws InvalidArrayIndexException {
-        if (index >= this.resultQueries.size()) {
+        if (index >= this.numResults) {
             throw InvalidArrayIndexException.create(index);
         }
 
-        return this.resultQueries.get((int) index);
+        long valueIndex = index * 2;
+
+        int valueStart = (int) this.array.getLine((int) this.lineIndex)[(int) valueIndex];
+        if (valueStart == -1) {
+            return NullValue.INSTANCE;
+        }
+        int valueEnd = (int) this.array.getLine((int) this.lineIndex)[(int) (valueIndex + 1)];
+
+        byte[] value = new byte[valueEnd - valueStart];
+        array.getFile().position(valueStart);
+        array.getFile().get(value);
+
+        return new String(value, StandardCharsets.UTF_8);
     }
 
     @ExportMessage
     @SuppressWarnings("unused")
     @CompilerDirectives.TruffleBoundary
     public boolean isArrayElementReadable(long index) {
-        return index < this.resultQueries.size();
+        return index < this.numResults;
     }
 
     @ExportMessage
     @SuppressWarnings("unused")
     public long getArraySize() {
-        return this.resultQueries.size();
+        return this.numResults;
     }
 }

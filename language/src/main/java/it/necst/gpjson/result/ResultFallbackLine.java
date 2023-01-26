@@ -7,24 +7,14 @@ import com.oracle.truffle.api.interop.TruffleObject;
 import com.oracle.truffle.api.library.ExportLibrary;
 import com.oracle.truffle.api.library.ExportMessage;
 
-import java.nio.MappedByteBuffer;
-import java.util.ArrayList;
 import java.util.List;
 
 @ExportLibrary(InteropLibrary.class)
-public class Result implements TruffleObject {
-    private final List<ResultQuery> resultQueries;
+public class ResultFallbackLine implements TruffleObject {
+    private final List<String> value;
 
-    public Result() {
-        this.resultQueries = new ArrayList<>();
-    }
-
-    public void addQuery(long[][] values, MappedByteBuffer file) {
-        resultQueries.add(new ResultGPJSONQuery(values.length, values, file));
-    }
-
-    public void addFallbackQuery(List<List<String>> values) {
-        resultQueries.add(new ResultFallbackQuery(values));
+    public ResultFallbackLine(List<String> value) {
+        this.value = value;
     }
 
     @ExportMessage
@@ -37,23 +27,23 @@ public class Result implements TruffleObject {
     @SuppressWarnings("unused")
     @CompilerDirectives.TruffleBoundary
     public Object readArrayElement(long index) throws InvalidArrayIndexException {
-        if (index >= this.resultQueries.size()) {
+        if (index >= this.value.size()) {
             throw InvalidArrayIndexException.create(index);
         }
 
-        return this.resultQueries.get((int) index);
+        return this.value.get((int) index);
     }
 
     @ExportMessage
     @SuppressWarnings("unused")
     @CompilerDirectives.TruffleBoundary
     public boolean isArrayElementReadable(long index) {
-        return index < this.resultQueries.size();
+        return index < this.value.size();
     }
 
     @ExportMessage
     @SuppressWarnings("unused")
     public long getArraySize() {
-        return this.resultQueries.size();
+        return this.value.size();
     }
 }

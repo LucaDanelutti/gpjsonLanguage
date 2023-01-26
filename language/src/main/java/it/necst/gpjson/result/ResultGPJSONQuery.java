@@ -7,18 +7,26 @@ import com.oracle.truffle.api.interop.TruffleObject;
 import com.oracle.truffle.api.library.ExportLibrary;
 import com.oracle.truffle.api.library.ExportMessage;
 
-import java.nio.charset.StandardCharsets;
+import java.nio.MappedByteBuffer;
 
 @ExportLibrary(InteropLibrary.class)
-public class ResultLine implements TruffleObject {
-    private final ResultQuery array;
-    private final long lineIndex;
-    private final int numResults;
+public class ResultGPJSONQuery extends ResultQuery implements TruffleObject {
+    private final long numberOfLines;
+    private final long[][] lines;
+    private final MappedByteBuffer file;
 
-    public ResultLine(ResultQuery array, long lineIndex, int numResults) {
-        this.array = array;
-        this.lineIndex = lineIndex;
-        this.numResults = numResults;
+    public ResultGPJSONQuery(long numberOfLines, long[][] lines, MappedByteBuffer file) {
+        this.numberOfLines = numberOfLines;
+        this.lines = lines;
+        this.file = file;
+    }
+
+    public long[] getLine(int index) {
+        return this.lines[index];
+    }
+
+    public MappedByteBuffer getFile() {
+        return this.file;
     }
 
     @ExportMessage
@@ -31,35 +39,23 @@ public class ResultLine implements TruffleObject {
     @SuppressWarnings("unused")
     @CompilerDirectives.TruffleBoundary
     public Object readArrayElement(long index) throws InvalidArrayIndexException {
-        if (index >= this.numResults) {
+        if (index >= numberOfLines) {
             throw InvalidArrayIndexException.create(index);
         }
 
-        long valueIndex = index * 2;
-
-        int valueStart = (int) this.array.getLine((int) this.lineIndex)[(int) valueIndex];
-        if (valueStart == -1) {
-            return NullValue.INSTANCE;
-        }
-        int valueEnd = (int) this.array.getLine((int) this.lineIndex)[(int) (valueIndex + 1)];
-
-        byte[] value = new byte[valueEnd - valueStart];
-        array.getFile().position(valueStart);
-        array.getFile().get(value);
-
-        return new String(value, StandardCharsets.UTF_8);
+        return new ResultGPJSONLine(this, index, this.lines[(int) index].length / 2);
     }
 
     @ExportMessage
     @SuppressWarnings("unused")
     @CompilerDirectives.TruffleBoundary
     public boolean isArrayElementReadable(long index) {
-        return index < this.numResults;
+        return index < this.numberOfLines;
     }
 
     @ExportMessage
     @SuppressWarnings("unused")
     public long getArraySize() {
-        return this.numResults;
+        return this.numberOfLines;
     }
 }

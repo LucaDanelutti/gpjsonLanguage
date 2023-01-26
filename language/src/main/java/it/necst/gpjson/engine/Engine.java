@@ -75,23 +75,21 @@ public class Engine implements TruffleObject {
         else
             exContext = new ExecutionContextUncombined(cu, kernels, fileName);
 
-        long[][][] indexes = new long[queries.length][][];
+        Result result = new Result();
         for (int i=0; i< queries.length; i++) {
             String query = queries[i];
             try {
-                indexes[i] = exContext.execute(query);
+                result.addQuery(exContext.execute(query), exContext.getFileBuffer());
                 LOGGER.log(Level.FINE, query + " executed successfully");
             } catch (UnsupportedJSONPathException e) {
                 LOGGER.log(Level.FINE, "Unsupported JSONPath query '" + query + "'. Falling back to cpu execution");
                 FallbackExecutionContext fallbackExecutionContext= new FallbackExecutionContext(fileName);
-                List<List<String>> resultStrings = fallbackExecutionContext.execute(query);
-                LOGGER.log(Level.FINE, query + " executed successfully (fallback to cpu) with " + resultStrings.size() + " results");
-                if (resultStrings.size() < 50)
-                    LOGGER.log(Level.FINER, resultStrings.toString());
+                result.addFallbackQuery(fallbackExecutionContext.execute(query));
+                LOGGER.log(Level.FINE, query + " executed successfully (fallback to cpu)");
             }
         }
 
-        return new Result(indexes, exContext.getFileBuffer());
+        return result;
     }
 
     public void query(String filename, String query, boolean combined, int numLevels) {
