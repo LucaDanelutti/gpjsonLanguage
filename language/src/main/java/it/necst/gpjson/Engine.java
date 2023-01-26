@@ -4,6 +4,7 @@ import com.oracle.truffle.api.CompilerDirectives;
 import com.oracle.truffle.api.interop.*;
 import com.oracle.truffle.api.library.ExportLibrary;
 import com.oracle.truffle.api.library.ExportMessage;
+import it.necst.gpjson.jsonpath.UnsupportedJSONPathException;
 import it.necst.gpjson.kernel.GpJSONKernel;
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.Value;
@@ -38,29 +39,31 @@ public class Engine implements TruffleObject {
     }
 
     public void buildKernels() {
-        long start;
-        start = System.nanoTime();
-        for (GpJSONKernel kernel : GpJSONKernel.values()) {
-            InputStream inputStream = getClass().getClassLoader().getResourceAsStream(kernel.getFilename());
-            if (inputStream != null) {
-                String code;
-                try {
-                    byte[] targetArray = new byte[inputStream.available()];
-                    inputStream.read(targetArray);
-                    code = new String(targetArray, StandardCharsets.UTF_8);
-                } catch (IOException e) {
-                    throw new GpJSONInternalException("cannot read from " + kernel.getFilename());
+        if (kernels.isEmpty()) {
+            long start;
+            start = System.nanoTime();
+            for (GpJSONKernel kernel : GpJSONKernel.values()) {
+                InputStream inputStream = getClass().getClassLoader().getResourceAsStream(kernel.getFilename());
+                if (inputStream != null) {
+                    String code;
+                    try {
+                        byte[] targetArray = new byte[inputStream.available()];
+                        inputStream.read(targetArray);
+                        code = new String(targetArray, StandardCharsets.UTF_8);
+                    } catch (IOException e) {
+                        throw new GpJSONInternalException("cannot read from " + kernel.getFilename());
+                    }
+                    kernels.put(kernel.getName(), cu.invokeMember("buildkernel", code, kernel.getParameterSignature()));
+                } else {
+                    throw new GpJSONInternalException("file not found " + kernel.getFilename());
                 }
-                kernels.put(kernel.getName(), cu.invokeMember("buildkernel", code, kernel.getParameterSignature()));
-            } else {
-                throw new GpJSONInternalException("file not found " + kernel.getFilename());
             }
+            MyLogger.log(Level.FINER, "Engine", "buildKernels()", "buildKernels() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         }
-        MyLogger.log(Level.FINER, "Engine", "buildKernels()", "buildKernels() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
     }
 
-    public void query(String fileName, List<String> queries, int numLevels, boolean getStrings, boolean combined) {
-/*        if (kernels.isEmpty()) buildKernels();
+    public void query(String fileName, String[] queries, boolean combined, int numLevels, boolean getStrings) {
+        if (kernels.isEmpty()) buildKernels();
         ExecutionContext exContext;
 
         if (combined)
@@ -90,13 +93,13 @@ public class Engine implements TruffleObject {
                 if (resultStrings.size() < 50)
                     MyLogger.log(Level.FINER, "Engine", "call()", resultStrings.toString());
             }
-        }*/
+        }
     }
 
-    public void query(String filename, String query, int numLevels, boolean getStrings, boolean combined) {
-        List<String> queries = new ArrayList<>();
-        queries.add(query);
-        this.query(filename, queries, numLevels, getStrings, combined);
+    public void query(String filename, String query, boolean combined, int numLevels, boolean getStrings) {
+        String[] queries = new String[1];
+        queries[0] = query;
+        this.query(filename, queries, combined, numLevels, getStrings);
     }
 
     @ExportMessage
@@ -118,13 +121,23 @@ public class Engine implements TruffleObject {
     }
 
     @ExportMessage
-    public Object invokeMember(String member, Object[] arguments) throws UnknownIdentifierException {
+    public Object invokeMember(String member, Object[] arguments) throws UnknownIdentifierException, UnsupportedTypeException {
         switch (member) {
             case "buildKernels":
+                if (arguments.length != 0) {
+                    throw new GpJSONException("buildKernels function requires 0 arguments");
+                }
                 this.buildKernels();
                 break;
             case "query":
-                this.query("../datasets/twitter_small_records.json", "$.user.lang", 3, true, true);
+                if ((arguments.length != 3) && (arguments.length != 4)) {
+                    throw new GpJSONException("query function requires 3 or 4 arguments");
+                }
+                String file = InvokeUtils.expectString(arguments[0], "argument 1 of query must be a string");
+                String[] queries = InvokeUtils.expectStringArray(arguments[1], "argument 2 of query must be an array of strings");
+                boolean combined = InvokeUtils.expectBoolean(arguments[2], "argument 3 of query must be a boolean");
+                int numLevels = InvokeUtils.expectInt(arguments[3], "argument 3 of query must be an int");
+                this.query(file, queries, combined, numLevels, false);
                 break;
             default:
                 throw UnknownIdentifierException.create(member);
