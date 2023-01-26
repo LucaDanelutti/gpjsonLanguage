@@ -1,6 +1,7 @@
-package it.necst.gpjson;
+package it.necst.gpjson.engine;
 
 import com.jayway.jsonpath.*;
+import it.necst.gpjson.GpJSONException;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;

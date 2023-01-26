@@ -1,5 +1,7 @@
-package it.necst.gpjson;
+package it.necst.gpjson.engine;
 
+import it.necst.gpjson.GpJSONException;
+import it.necst.gpjson.MyLogger;
 import it.necst.gpjson.jsonpath.*;
 import org.graalvm.polyglot.Value;
 

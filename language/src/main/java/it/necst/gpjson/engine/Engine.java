@@ -1,9 +1,10 @@
-package it.necst.gpjson;
+package it.necst.gpjson.engine;
 
 import com.oracle.truffle.api.CompilerDirectives;
 import com.oracle.truffle.api.interop.*;
 import com.oracle.truffle.api.library.ExportLibrary;
 import com.oracle.truffle.api.library.ExportMessage;
+import it.necst.gpjson.*;
 import it.necst.gpjson.jsonpath.UnsupportedJSONPathException;
 import it.necst.gpjson.kernel.GpJSONKernel;
 import org.graalvm.polyglot.Context;
@@ -104,13 +105,13 @@ public class Engine implements TruffleObject {
 
     @ExportMessage
     @SuppressWarnings("static-method")
-    boolean hasMembers() {
+    public boolean hasMembers() {
         return true;
     }
 
     @ExportMessage
     @SuppressWarnings("static-method")
-    Object getMembers(@SuppressWarnings("unused") boolean includeInternal) {
+    public Object getMembers(@SuppressWarnings("unused") boolean includeInternal) {
         return new String[] {"buildKernels", "query"};
     }
 

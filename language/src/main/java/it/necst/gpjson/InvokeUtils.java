@@ -9,7 +9,7 @@ import com.oracle.truffle.api.interop.UnsupportedTypeException;
 public class InvokeUtils {
     private static final InteropLibrary INTEROP = InteropLibrary.getFactory().getUncached();
 
-    protected static String expectString(Object argument, String errorMessage) throws UnsupportedTypeException {
+    public static String expectString(Object argument, String errorMessage) throws UnsupportedTypeException {
         CompilerAsserts.neverPartOfCompilation();
         try {
             return INTEROP.asString(argument);
@@ -18,7 +18,7 @@ public class InvokeUtils {
         }
     }
 
-    protected static int expectInt(Object argument, String errorMessage) throws UnsupportedTypeException {
+    public static int expectInt(Object argument, String errorMessage) throws UnsupportedTypeException {
         CompilerAsserts.neverPartOfCompilation();
         try {
             return INTEROP.asInt(argument);
@@ -27,7 +27,7 @@ public class InvokeUtils {
         }
     }
 
-    protected static boolean expectBoolean(Object argument, String errorMessage) throws UnsupportedTypeException {
+    public static boolean expectBoolean(Object argument, String errorMessage) throws UnsupportedTypeException {
         CompilerAsserts.neverPartOfCompilation();
         try {
             return INTEROP.asBoolean(argument);
@@ -36,7 +36,7 @@ public class InvokeUtils {
         }
     }
 
-    protected static String[] expectStringArray(Object argument, String errorMessage) throws UnsupportedTypeException {
+    public static String[] expectStringArray(Object argument, String errorMessage) throws UnsupportedTypeException {
         CompilerAsserts.neverPartOfCompilation();
         String[] res;
         try {

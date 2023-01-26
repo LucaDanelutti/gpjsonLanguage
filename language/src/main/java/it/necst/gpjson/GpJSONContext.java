@@ -2,6 +2,7 @@ package it.necst.gpjson;
 
 import com.oracle.truffle.api.TruffleLanguage;
 import com.oracle.truffle.api.nodes.Node;
+import it.necst.gpjson.engine.Engine;
 
 public final class GpJSONContext {
     private final Engine engine;
