@@ -5,7 +5,9 @@ import com.oracle.truffle.api.nodes.RootNode;
 import it.necst.gpjson.GpJSONLanguage;
 
 public class GpJSONRootNode extends RootNode {
-    @Child private final ExpressionNode expression;
+    @SuppressWarnings("FieldMayBeFinal")
+    @Child
+    private ExpressionNode expression;
 
     public GpJSONRootNode(GpJSONLanguage language, ExpressionNode expressionNode) {
         super(language);
