@@ -40,6 +40,10 @@ public abstract class ExecutionContext {
         this.fileName = fileName;
     }
 
+    public MappedByteBuffer getFileBuffer() {
+        return fileBuffer;
+    }
+
     public void loadFile() {
         long start;
         start = System.nanoTime();

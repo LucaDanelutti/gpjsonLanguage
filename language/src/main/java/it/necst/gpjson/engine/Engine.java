@@ -7,6 +7,7 @@ import com.oracle.truffle.api.library.ExportMessage;
 import it.necst.gpjson.*;
 import it.necst.gpjson.jsonpath.UnsupportedJSONPathException;
 import it.necst.gpjson.kernel.GpJSONKernel;
+import it.necst.gpjson.result.Result;
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.Value;
 
@@ -63,7 +64,7 @@ public class Engine implements TruffleObject {
         }
     }
 
-    public void query(String fileName, String[] queries, boolean combined, int numLevels, boolean getStrings) {
+    public Result query(String fileName, String[] queries, boolean combined, int numLevels, boolean getStrings) {
         if (kernels.isEmpty()) buildKernels();
         ExecutionContext exContext;
 
@@ -72,7 +73,9 @@ public class Engine implements TruffleObject {
         else
             exContext = new ExecutionContextUncombined(cu, kernels, fileName);
 
-        for (String query: queries) {
+        long[][][] indexes = new long[queries.length][][];
+        for (int i=0; i< queries.length; i++) {
+            String query = queries[i];
             try {
                 if (getStrings) {
                     List<List<String>> resultStrings = exContext.executeAndGetStrings(query);
@@ -80,7 +83,7 @@ public class Engine implements TruffleObject {
                     if (resultStrings.size() < 50)
                         MyLogger.log(Level.FINER, "Engine", "call()", resultStrings.toString());
                 } else {
-                    exContext.execute(query);
+                    indexes[i] = exContext.execute(query);
                     MyLogger.log(Level.FINE, "Engine", "call()", query + " executed successfully");
                 }
             } catch (UnsupportedJSONPathException e) {
@@ -92,6 +95,8 @@ public class Engine implements TruffleObject {
                     MyLogger.log(Level.FINER, "Engine", "call()", resultStrings.toString());
             }
         }
+
+        return new Result(indexes, exContext.getFileBuffer());
     }
 
     public void query(String filename, String query, boolean combined, int numLevels, boolean getStrings) {
@@ -126,7 +131,7 @@ public class Engine implements TruffleObject {
                     throw new GpJSONException("buildKernels function requires 0 arguments");
                 }
                 this.buildKernels();
-                break;
+                return this;
             case "query":
                 if ((arguments.length != 3) && (arguments.length != 4)) {
                     throw new GpJSONException("query function requires 3 or 4 arguments");
@@ -135,11 +140,9 @@ public class Engine implements TruffleObject {
                 String[] queries = InvokeUtils.expectStringArray(arguments[1], "argument 2 of query must be an array of strings");
                 boolean combined = InvokeUtils.expectBoolean(arguments[2], "argument 3 of query must be a boolean");
                 int numLevels = InvokeUtils.expectInt(arguments[3], "argument 3 of query must be an int");
-                this.query(file, queries, combined, numLevels, false);
-                break;
+                return this.query(file, queries, combined, numLevels, false);
             default:
                 throw UnknownIdentifierException.create(member);
         }
-        return this;
     }
 }
