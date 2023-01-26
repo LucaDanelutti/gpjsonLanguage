@@ -11,8 +11,6 @@ import com.oracle.truffle.api.source.SourceSection;
 
 @ExportLibrary(InteropLibrary.class)
 public class GpJSONParserException extends AbstractTruffleException {
-
-    // private static final long serialVersionUID = -6653370806148433373L;
     private final Source source;
     private final int line;
     private final int column;

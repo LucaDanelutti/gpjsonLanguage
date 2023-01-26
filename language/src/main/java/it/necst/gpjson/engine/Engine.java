@@ -45,19 +45,19 @@ public class Engine implements TruffleObject {
             long start;
             start = System.nanoTime();
             for (GpJSONKernel kernel : GpJSONKernel.values()) {
-                InputStream inputStream = getClass().getClassLoader().getResourceAsStream(kernel.getFilename());
-                if (inputStream != null) {
-                    String code;
-                    try {
+                try (InputStream inputStream = getClass().getClassLoader().getResourceAsStream(kernel.getFilename())) {
+                    if (inputStream != null) {
+                        String code;
                         byte[] targetArray = new byte[inputStream.available()];
-                        inputStream.read(targetArray);
+                        if (inputStream.read(targetArray) <= 0)
+                            throw new GpJSONInternalException("error reading from " + kernel.getFilename());
                         code = new String(targetArray, StandardCharsets.UTF_8);
-                    } catch (IOException e) {
-                        throw new GpJSONInternalException("cannot read from " + kernel.getFilename());
+                        kernels.put(kernel.getName(), cu.invokeMember("buildkernel", code, kernel.getParameterSignature()));
+                    } else {
+                        throw new GpJSONInternalException("file not found " + kernel.getFilename());
                     }
-                    kernels.put(kernel.getName(), cu.invokeMember("buildkernel", code, kernel.getParameterSignature()));
-                } else {
-                    throw new GpJSONInternalException("file not found " + kernel.getFilename());
+                } catch (IOException e) {
+                    throw new GpJSONInternalException("cannot read from " + kernel.getFilename());
                 }
             }
             MyLogger.log(Level.FINER, "Engine", "buildKernels()", "buildKernels() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
@@ -80,7 +80,7 @@ public class Engine implements TruffleObject {
                 indexes[i] = exContext.execute(query);
                 MyLogger.log(Level.FINE, "Engine", "call()", query + " executed successfully");
             } catch (UnsupportedJSONPathException e) {
-                MyLogger.log(Level.FINE, "Engine", "call()", "Unsupported JSONPath query \'" + query + "\'. Falling back to cpu execution");
+                MyLogger.log(Level.FINE, "Engine", "call()", "Unsupported JSONPath query '" + query + "'. Falling back to cpu execution");
                 FallbackExecutionContext fallbackExecutionContext= new FallbackExecutionContext(fileName);
                 List<List<String>> resultStrings = fallbackExecutionContext.execute(query);
                 MyLogger.log(Level.FINE, "Engine", "call()", query + " executed successfully (fallback to cpu) with " + resultStrings.size() + " results");
@@ -92,7 +92,7 @@ public class Engine implements TruffleObject {
         return new Result(indexes, exContext.getFileBuffer());
     }
 
-    public void query(String filename, String query, boolean combined, int numLevels, boolean getStrings) {
+    public void query(String filename, String query, boolean combined, int numLevels) {
         String[] queries = new String[1];
         queries[0] = query;
         this.query(filename, queries, combined, numLevels);

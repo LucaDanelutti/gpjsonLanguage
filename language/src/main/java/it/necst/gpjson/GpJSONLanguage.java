@@ -8,7 +8,7 @@ import it.necst.gpjson.parser.ParserAntlr;
 
 @TruffleLanguage.Registration(id = "gpjson", name = "gpjson")
 public final class GpJSONLanguage extends TruffleLanguage<GpJSONContext> {
-    protected CallTarget parse(ParsingRequest request) throws Exception {
+    protected CallTarget parse(ParsingRequest request) {
         ExpressionNode exprNode = new ParserAntlr().parse(request.getSource());
         GpJSONRootNode rootNode = new GpJSONRootNode(this, exprNode);
         return rootNode.getCallTarget();
