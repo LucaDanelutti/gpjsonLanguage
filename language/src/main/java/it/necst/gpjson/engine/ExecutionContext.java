@@ -85,7 +85,7 @@ public abstract class ExecutionContext {
         long start = System.nanoTime();
         JSONPathResult compiledQuery = this.compileQuery(query);
         MyLogger.log(Level.FINER, "ExecutionContext", "execute()", "compileQuery() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
-        if (!isIndexed)
+        if (!isIndexed || numLevels < compiledQuery.getMaxDepth())
             this.buildIndexes(compiledQuery.getMaxDepth());
         start = System.nanoTime();
         long[][] resultIndexes = this.query(compiledQuery);

@@ -72,9 +72,6 @@ public class Engine implements TruffleObject {
         else
             exContext = new ExecutionContextUncombined(cu, kernels, fileName);
 
-        exContext.loadFile();
-        exContext.buildIndexes(numLevels);
-
         for (String query: queries) {
             try {
                 if (getStrings) {
