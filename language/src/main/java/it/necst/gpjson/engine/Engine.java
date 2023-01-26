@@ -22,6 +22,10 @@ import static it.necst.gpjson.GpJSONLogger.GPJSON_LOGGER;
 
 @ExportLibrary(InteropLibrary.class)
 public class Engine implements TruffleObject {
+    private static final String BUILDKERNELS = "buildKernels";
+    private static final String QUERY = "query";
+    private static final String CREATECONTEXT = "createContext";
+
     private final Value cu;
     Map<String,Value> kernels = new HashMap<>();
 
@@ -93,38 +97,38 @@ public class Engine implements TruffleObject {
     @ExportMessage
     @SuppressWarnings("static-method")
     public Object getMembers(@SuppressWarnings("unused") boolean includeInternal) {
-        return new String[] {"buildKernels", "query", "createContext"};
+        return new String[] {BUILDKERNELS, QUERY, CREATECONTEXT};
     }
 
     @ExportMessage
     @CompilerDirectives.TruffleBoundary
     public boolean isMemberInvocable(String member) {
-        return "buildKernels".equals(member) | "query".equals(member) | "createContext".equals(member);
+        return BUILDKERNELS.equals(member) | QUERY.equals(member) | CREATECONTEXT.equals(member);
     }
 
     @ExportMessage
     public Object invokeMember(String member, Object[] arguments) throws UnknownIdentifierException, UnsupportedTypeException {
         switch (member) {
-            case "buildKernels":
+            case BUILDKERNELS:
                 if (arguments.length != 0) {
-                    throw new GpJSONException("buildKernels function requires 0 arguments");
+                    throw new GpJSONException(BUILDKERNELS + " function requires 0 arguments");
                 }
                 this.buildKernels();
                 return this;
-            case "query":
+            case QUERY:
                 if ((arguments.length != 3)) {
-                    throw new GpJSONException("query function requires 3 arguments");
+                    throw new GpJSONException(QUERY + " function requires 3 arguments");
                 }
-                String file = InvokeUtils.expectString(arguments[0], "argument 1 of query must be a string");
-                String[] queries = InvokeUtils.expectStringArray(arguments[1], "argument 2 of query must be an array of strings");
-                boolean combined = InvokeUtils.expectBoolean(arguments[2], "argument 3 of query must be a boolean");
+                String file = InvokeUtils.expectString(arguments[0], "argument 1 of " + QUERY + " must be a string");
+                String[] queries = InvokeUtils.expectStringArray(arguments[1], "argument 2 of " + QUERY + " must be an array of strings");
+                boolean combined = InvokeUtils.expectBoolean(arguments[2], "argument 3 of " + QUERY + " must be a boolean");
                 return this.query(file, queries, combined);
-            case "createContext":
+            case CREATECONTEXT:
                 if ((arguments.length != 2)) {
-                    throw new GpJSONException("createContext function requires 2 arguments");
+                    throw new GpJSONException(CREATECONTEXT + " function requires 2 arguments");
                 }
-                file = InvokeUtils.expectString(arguments[0], "argument 1 of createContext must be a string");
-                combined = InvokeUtils.expectBoolean(arguments[1], "argument 2 of createContext must be a boolean");
+                file = InvokeUtils.expectString(arguments[0], "argument 1 of " + CREATECONTEXT + " must be a string");
+                combined = InvokeUtils.expectBoolean(arguments[1], "argument 2 of " + CREATECONTEXT + " must be a boolean");
                 return this.createContext(file, combined);
             default:
                 throw UnknownIdentifierException.create(member);

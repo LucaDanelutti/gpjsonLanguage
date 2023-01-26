@@ -38,6 +38,10 @@ import static it.necst.gpjson.GpJSONLogger.GPJSON_LOGGER;
 
 @ExportLibrary(InteropLibrary.class)
 public abstract class ExecutionContext implements TruffleObject {
+    private static final String LOADFILE = "loadFile";
+    private static final String BUILDINDEXES = "buildIndexes";
+    private static final String QUERY = "query";
+
     protected final Value cu;
     protected final Map<String,Value> kernels;
     protected final int gridSize = 8; //8 or 512
@@ -247,36 +251,36 @@ public abstract class ExecutionContext implements TruffleObject {
     @ExportMessage
     @SuppressWarnings("static-method")
     public Object getMembers(@SuppressWarnings("unused") boolean includeInternal) {
-        return new String[] {"loadFile", "buildIndexes", "query"};
+        return new String[] {LOADFILE, BUILDINDEXES, QUERY};
     }
 
     @ExportMessage
     @CompilerDirectives.TruffleBoundary
     public boolean isMemberInvocable(String member) {
-        return "loadFile".equals(member) | "buildIndexes".equals(member) | "query".equals(member);
+        return LOADFILE.equals(member) | BUILDINDEXES.equals(member) | QUERY.equals(member);
     }
 
     @ExportMessage
     public Object invokeMember(String member, Object[] arguments) throws UnknownIdentifierException, UnsupportedTypeException {
         switch (member) {
-            case "loadFile":
+            case LOADFILE:
                 if (arguments.length != 0) {
-                    throw new GpJSONException("loadFile" + " function requires 0 arguments");
+                    throw new GpJSONException(LOADFILE + " function requires 0 arguments");
                 }
                 this.loadFile();
                 return this;
-            case "buildIndexes":
+            case BUILDINDEXES:
                 if (arguments.length != 1) {
-                    throw new GpJSONException("buildIndexes" + " function requires 1 argument");
+                    throw new GpJSONException(BUILDINDEXES + " function requires 1 argument");
                 }
-                int depth = InvokeUtils.expectInt(arguments[0], "argument 1 of " + "buildIndexes" + " must be an int");
+                int depth = InvokeUtils.expectInt(arguments[0], "argument 1 of " + BUILDINDEXES + " must be an int");
                 this.buildIndexes(depth);
                 return this;
-            case "query":
+            case QUERY:
                 if (arguments.length != 1) {
-                    throw new GpJSONException("query" + " function requires 1 arguments");
+                    throw new GpJSONException(QUERY + " function requires 1 arguments");
                 }
-                String query = InvokeUtils.expectString(arguments[0], "argument 1 of " + "query" + " must be a string");
+                String query = InvokeUtils.expectString(arguments[0], "argument 1 of " + QUERY + " must be a string");
                 return this.query(query);
             default:
                 throw UnknownIdentifierException.create(member);
