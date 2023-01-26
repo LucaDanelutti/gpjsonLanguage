@@ -64,7 +64,7 @@ public class Engine implements TruffleObject {
         }
     }
 
-    public Result query(String fileName, String[] queries, boolean combined, int numLevels, boolean getStrings) {
+    public Result query(String fileName, String[] queries, boolean combined, int numLevels) {
         if (kernels.isEmpty()) buildKernels();
         ExecutionContext exContext;
 
@@ -77,15 +77,8 @@ public class Engine implements TruffleObject {
         for (int i=0; i< queries.length; i++) {
             String query = queries[i];
             try {
-                if (getStrings) {
-                    List<List<String>> resultStrings = exContext.executeAndGetStrings(query);
-                    MyLogger.log(Level.FINE, "Engine", "call()", query + " executed successfully with " + resultStrings.size() + " results");
-                    if (resultStrings.size() < 50)
-                        MyLogger.log(Level.FINER, "Engine", "call()", resultStrings.toString());
-                } else {
-                    indexes[i] = exContext.execute(query);
-                    MyLogger.log(Level.FINE, "Engine", "call()", query + " executed successfully");
-                }
+                indexes[i] = exContext.execute(query);
+                MyLogger.log(Level.FINE, "Engine", "call()", query + " executed successfully");
             } catch (UnsupportedJSONPathException e) {
                 MyLogger.log(Level.FINE, "Engine", "call()", "Unsupported JSONPath query \'" + query + "\'. Falling back to cpu execution");
                 FallbackExecutionContext fallbackExecutionContext= new FallbackExecutionContext(fileName);
@@ -102,7 +95,7 @@ public class Engine implements TruffleObject {
     public void query(String filename, String query, boolean combined, int numLevels, boolean getStrings) {
         String[] queries = new String[1];
         queries[0] = query;
-        this.query(filename, queries, combined, numLevels, getStrings);
+        this.query(filename, queries, combined, numLevels);
     }
 
     @ExportMessage
@@ -140,7 +133,7 @@ public class Engine implements TruffleObject {
                 String[] queries = InvokeUtils.expectStringArray(arguments[1], "argument 2 of query must be an array of strings");
                 boolean combined = InvokeUtils.expectBoolean(arguments[2], "argument 3 of query must be a boolean");
                 int numLevels = InvokeUtils.expectInt(arguments[3], "argument 3 of query must be an int");
-                return this.query(file, queries, combined, numLevels, false);
+                return this.query(file, queries, combined, numLevels);
             default:
                 throw UnknownIdentifierException.create(member);
         }
