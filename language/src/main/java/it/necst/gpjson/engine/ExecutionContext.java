@@ -157,7 +157,9 @@ public abstract class ExecutionContext implements TruffleObject {
 
     private void createLeveledBitmapsIndex() {
         leveledBitmapsIndexMemory = cu.invokeMember("DeviceArray", "long", levelSize * numLevels);
+        long startInitialize = System.nanoTime();
         kernels.get("initialize").execute(gridSize, blockSize).execute(leveledBitmapsIndexMemory, leveledBitmapsIndexMemory.getArraySize(), 0);
+        LOGGER.log(Level.FINEST, "initialize done in " + (System.nanoTime() - startInitialize) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         Value carryIndexMemory = cu.invokeMember("DeviceArray", "char", gridSize * blockSize);
         kernels.get("create_leveled_bitmaps_carry_index").execute(gridSize, blockSize).execute(fileMemory, fileMemory.getArraySize(), stringIndexMemory, carryIndexMemory);
         int level = -1;
@@ -177,7 +179,9 @@ public abstract class ExecutionContext implements TruffleObject {
         long numberOfResults = compiledQuery.getNumResults();
         Value result = cu.invokeMember("DeviceArray", "long", numberOfLines * 2 * numberOfResults);
         Value queryMemory = cu.invokeMember("DeviceArray", "char", compiledQuery.getIr().size());
+        long startInitialize = System.nanoTime();
         kernels.get("initialize").execute(gridSize, blockSize).execute(result, result.getArraySize(), -1);
+        LOGGER.log(Level.FINEST, "initialize done in " + (System.nanoTime() - startInitialize) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         byte[] queryByteArray = compiledQuery.getIr().toByteArray();
         for (int j = 0; j < queryByteArray.length; j++) {
             queryMemory.setArrayElement(j, queryByteArray[j]);
