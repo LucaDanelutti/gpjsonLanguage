@@ -114,37 +114,6 @@ public abstract class ExecutionContext implements TruffleObject {
         }
     }
 
-    public Result query(String[] queries) {
-        this.loadFile();
-        JSONPathResult[] compiledQueries = new JSONPathResult[queries.length];
-        int maxDepth = 0;
-        for (int i=0; i< queries.length; i++) {
-            try {
-                compiledQueries[i] = this.compileQuery(queries[i]);
-                maxDepth = Math.max(maxDepth, compiledQueries[i].getMaxDepth());
-            } catch (UnsupportedJSONPathException e) {
-                LOGGER.log(Level.FINE, "Unsupported JSONPath query '" + queries[i] + "'. Falling back to cpu execution");
-                compiledQueries[i] = null;
-            } catch (JSONPathException e) {
-                throw new GpJSONException("Error parsing query: " + queries[i]);
-            }
-        }
-        this.buildIndexes(maxDepth);
-        Result result = new Result();
-        for (int i = 0; i < compiledQueries.length; i++) {
-            JSONPathResult compiledQuery = compiledQueries[i];
-            String query = queries[i];
-            if (compiledQuery != null) {
-                result.addQuery(this.query(compiledQuery), this.fileBuffer);
-                LOGGER.log(Level.FINE, query + " executed successfully");
-            } else {
-                result.addFallbackQuery(this.fallbackQuery(query));
-                LOGGER.log(Level.FINE, query + " executed successfully (cpu fallback)");
-            }
-        }
-        return result;
-    }
-
     private JSONPathResult compileQuery(String query) throws JSONPathException {
         long start = System.nanoTime();
         JSONPathResult result;
@@ -221,6 +190,37 @@ public abstract class ExecutionContext implements TruffleObject {
         } catch (IOException e) {
             throw new GpJSONException("Failed to read file");
         }
+    }
+
+    public Result query(String[] queries) {
+        this.loadFile();
+        JSONPathResult[] compiledQueries = new JSONPathResult[queries.length];
+        int maxDepth = 0;
+        for (int i=0; i< queries.length; i++) {
+            try {
+                compiledQueries[i] = this.compileQuery(queries[i]);
+                maxDepth = Math.max(maxDepth, compiledQueries[i].getMaxDepth());
+            } catch (UnsupportedJSONPathException e) {
+                LOGGER.log(Level.FINE, "Unsupported JSONPath query '" + queries[i] + "'. Falling back to cpu execution");
+                compiledQueries[i] = null;
+            } catch (JSONPathException e) {
+                throw new GpJSONException("Error parsing query: " + queries[i]);
+            }
+        }
+        this.buildIndexes(maxDepth);
+        Result result = new Result();
+        for (int i = 0; i < compiledQueries.length; i++) {
+            JSONPathResult compiledQuery = compiledQueries[i];
+            String query = queries[i];
+            if (compiledQuery != null) {
+                result.addQuery(this.query(compiledQuery), this.fileBuffer);
+                LOGGER.log(Level.FINE, query + " executed successfully");
+            } else {
+                result.addFallbackQuery(this.fallbackQuery(query));
+                LOGGER.log(Level.FINE, query + " executed successfully (cpu fallback)");
+            }
+        }
+        return result;
     }
 
     private ResultQuery query(String query) {
