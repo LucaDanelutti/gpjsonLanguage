@@ -37,15 +37,15 @@ import java.util.stream.Stream;
 import static it.necst.gpjson.GpJSONLogger.GPJSON_LOGGER;
 
 @ExportLibrary(InteropLibrary.class)
-public abstract class ExecutionContext implements TruffleObject {
+public class ExecutionContext implements TruffleObject {
     private static final String LOADFILE = "loadFile";
     private static final String BUILDINDEXES = "buildIndexes";
     private static final String QUERY = "query";
 
     protected final Value cu;
     protected final Map<String,Value> kernels;
-    protected final int gridSize = 8; //8 or 512
-    protected final int blockSize = 1024;
+
+    private Executor executor;
 
     //File
     private final String fileName;
@@ -53,13 +53,6 @@ public abstract class ExecutionContext implements TruffleObject {
     protected Value fileMemory;
     protected long levelSize;
     private boolean isLoaded = false;
-
-    //Indexes
-    protected Value newlineIndexMemory;
-    protected Value stringIndexMemory;
-    protected Value leveledBitmapsIndexMemory;
-    protected long numLevels;
-    private boolean isIndexed = false;
 
     private static final TruffleLogger LOGGER = GpJSONLogger.getLogger(GPJSON_LOGGER);
 
@@ -98,20 +91,11 @@ public abstract class ExecutionContext implements TruffleObject {
         }
     }
 
-    private void buildIndexes(long numLevels) {
-        if (!isIndexed || numLevels > this.numLevels) {
-            if (!isLoaded)
-                throw new GpJSONException("You must load the file before indexing");
-            this.numLevels = numLevels;
-            long start;
-            start = System.nanoTime();
-            this.createNewlineStringIndex();
-            LOGGER.log(Level.FINER, "createNewlineStringIndex() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
-            start = System.nanoTime();
-            this.createLeveledBitmapsIndex();
-            LOGGER.log(Level.FINER, "createLeveledBitmapsIndex() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
-            isIndexed = true;
-        }
+    private void buildIndexes(long numLevels, boolean combined) {
+        if (!isLoaded)
+            throw new GpJSONException("You must load the file before indexing");
+        this.executor = new Executor(cu, kernels, fileMemory, combined);
+        executor.buildIndexes(numLevels);
     }
 
     private JSONPathResult compileQuery(String query) throws JSONPathException {
@@ -120,53 +104,6 @@ public abstract class ExecutionContext implements TruffleObject {
         result = new JSONPathParser(new JSONPathScanner(query)).compile();
         LOGGER.log(Level.FINER, "compileQuery() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         return result;
-    }
-
-    protected abstract void createNewlineStringIndex();
-
-    private void createLeveledBitmapsIndex() {
-        leveledBitmapsIndexMemory = cu.invokeMember("DeviceArray", "long", levelSize * numLevels);
-        long startInitialize = System.nanoTime();
-        kernels.get("initialize").execute(gridSize, blockSize).execute(leveledBitmapsIndexMemory, leveledBitmapsIndexMemory.getArraySize(), 0);
-        LOGGER.log(Level.FINEST, "initialize done in " + (System.nanoTime() - startInitialize) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
-        Value carryIndexMemory = cu.invokeMember("DeviceArray", "char", gridSize * blockSize);
-        kernels.get("create_leveled_bitmaps_carry_index").execute(gridSize, blockSize).execute(fileMemory, fileMemory.getArraySize(), stringIndexMemory, carryIndexMemory);
-        int level = -1;
-        for (int i=0; i<carryIndexMemory.getArraySize(); i++) {
-            int value = carryIndexMemory.getArrayElement(i).asInt();
-            carryIndexMemory.setArrayElement(i, level);
-            level += value;
-        }
-        kernels.get("create_leveled_bitmaps").execute(gridSize, blockSize).execute(fileMemory, fileMemory.getArraySize(), stringIndexMemory, carryIndexMemory, leveledBitmapsIndexMemory, levelSize * numLevels, levelSize, numLevels);
-    }
-
-    private long[][] query(JSONPathResult compiledQuery) {
-        long start = System.nanoTime();
-        if (!isIndexed)
-            throw new GpJSONException("You must index the file before querying");
-        long numberOfLines = newlineIndexMemory.getArraySize();
-        long numberOfResults = compiledQuery.getNumResults();
-        Value result = cu.invokeMember("DeviceArray", "long", numberOfLines * 2 * numberOfResults);
-        Value queryMemory = cu.invokeMember("DeviceArray", "char", compiledQuery.getIr().size());
-        long startInitialize = System.nanoTime();
-        kernels.get("initialize").execute(gridSize, blockSize).execute(result, result.getArraySize(), -1);
-        LOGGER.log(Level.FINEST, "initialize done in " + (System.nanoTime() - startInitialize) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
-        byte[] queryByteArray = compiledQuery.getIr().toByteArray();
-        for (int j = 0; j < queryByteArray.length; j++) {
-            queryMemory.setArrayElement(j, queryByteArray[j]);
-        }
-        kernels.get("find_value").execute(512, 1024).execute(fileMemory, fileMemory.getArraySize(), newlineIndexMemory, newlineIndexMemory.getArraySize(), stringIndexMemory, leveledBitmapsIndexMemory, leveledBitmapsIndexMemory.getArraySize(), levelSize, queryMemory, compiledQuery.getNumResults(), result);
-        UnsafeHelper.LongArray longArray = UnsafeHelper.createLongArray(result.getArraySize());
-        result.invokeMember("copyTo", longArray.getAddress());
-        long[][] resultIndexes = new long[(int) numberOfLines][(int) numberOfResults * 2];
-        for (int j = 0; j < numberOfLines; j++) {
-            for (int k = 0; k < compiledQuery.getNumResults()*2; k+=2) {
-                resultIndexes[j][k] = longArray.getValueAt(j*numberOfResults*2+ k);
-                resultIndexes[j][k+1] = longArray.getValueAt(j*numberOfResults*2 + k + 1);
-            }
-        }
-        LOGGER.log(Level.FINER, "query() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
-        return resultIndexes;
     }
 
     private List<List<String>> fallbackQuery(String query) {
@@ -192,7 +129,7 @@ public abstract class ExecutionContext implements TruffleObject {
         }
     }
 
-    public Result query(String[] queries) {
+    public Result query(String[] queries, boolean combined) {
         this.loadFile();
         JSONPathResult[] compiledQueries = new JSONPathResult[queries.length];
         int maxDepth = 0;
@@ -207,13 +144,13 @@ public abstract class ExecutionContext implements TruffleObject {
                 throw new GpJSONException("Error parsing query: " + queries[i]);
             }
         }
-        this.buildIndexes(maxDepth);
+        this.buildIndexes(maxDepth, combined);
         Result result = new Result();
         for (int i = 0; i < compiledQueries.length; i++) {
             JSONPathResult compiledQuery = compiledQueries[i];
             String query = queries[i];
             if (compiledQuery != null) {
-                result.addQuery(this.query(compiledQuery), this.fileBuffer);
+                result.addQuery(this.executor.query(compiledQuery), this.fileBuffer);
                 LOGGER.log(Level.FINE, query + " executed successfully");
             } else {
                 result.addFallbackQuery(this.fallbackQuery(query));
@@ -236,7 +173,7 @@ public abstract class ExecutionContext implements TruffleObject {
 
         ResultQuery result;
         if (compiledQuery != null) {
-            long[][] values = this.query(compiledQuery);
+            long[][] values = this.executor.query(compiledQuery);
             result = new ResultGPJSONQuery(values.length, values, fileBuffer);
             LOGGER.log(Level.FINE, query + " executed successfully");
         } else {
@@ -274,11 +211,12 @@ public abstract class ExecutionContext implements TruffleObject {
                 this.loadFile();
                 return this;
             case BUILDINDEXES:
-                if (arguments.length != 1) {
-                    throw new GpJSONException(BUILDINDEXES + " function requires 1 argument");
+                if (arguments.length != 2) {
+                    throw new GpJSONException(BUILDINDEXES + " function requires 2 argument");
                 }
                 int depth = InvokeUtils.expectInt(arguments[0], "argument 1 of " + BUILDINDEXES + " must be an int");
-                this.buildIndexes(depth);
+                boolean combined = InvokeUtils.expectBoolean(arguments[1], "argument 2 of " + BUILDINDEXES + " must be a boolean");
+                this.buildIndexes(depth, combined);
                 return this;
             case QUERY:
                 if (arguments.length != 1) {

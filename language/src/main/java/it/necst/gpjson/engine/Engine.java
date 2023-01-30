@@ -71,21 +71,12 @@ public class Engine implements TruffleObject {
 
     private Result query(String fileName, String[] queries, boolean combined) {
         if (kernels.isEmpty()) buildKernels();
-        ExecutionContext exContext;
-
-        if (combined)
-            exContext = new ExecutionContextCombined(cu, kernels, fileName);
-        else
-            exContext = new ExecutionContextUncombined(cu, kernels, fileName);
-
-        return exContext.query(queries);
+        ExecutionContext exContext = new ExecutionContext(cu, kernels, fileName);
+        return exContext.query(queries, combined);
     }
 
-    private ExecutionContext createContext(String fileName, boolean combined) {
-        if (combined)
-            return new ExecutionContextCombined(cu, kernels, fileName);
-        else
-            return new ExecutionContextUncombined(cu, kernels, fileName);
+    private ExecutionContext createContext(String fileName) {
+        return new ExecutionContext(cu, kernels, fileName);
     }
 
     @ExportMessage
@@ -124,12 +115,11 @@ public class Engine implements TruffleObject {
                 boolean combined = InvokeUtils.expectBoolean(arguments[2], "argument 3 of " + QUERY + " must be a boolean");
                 return this.query(file, queries, combined);
             case CREATECONTEXT:
-                if ((arguments.length != 2)) {
-                    throw new GpJSONException(CREATECONTEXT + " function requires 2 arguments");
+                if ((arguments.length != 1)) {
+                    throw new GpJSONException(CREATECONTEXT + " function requires 1 arguments");
                 }
                 file = InvokeUtils.expectString(arguments[0], "argument 1 of " + CREATECONTEXT + " must be a string");
-                combined = InvokeUtils.expectBoolean(arguments[1], "argument 2 of " + CREATECONTEXT + " must be a boolean");
-                return this.createContext(file, combined);
+                return this.createContext(file);
             default:
                 throw UnknownIdentifierException.create(member);
         }
