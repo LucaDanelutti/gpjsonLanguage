@@ -76,6 +76,7 @@ public class Engine implements TruffleObject {
     }
 
     private ExecutionContext createContext(String fileName) {
+        if (kernels.isEmpty()) buildKernels();
         return new ExecutionContext(cu, kernels, fileName);
     }
 
