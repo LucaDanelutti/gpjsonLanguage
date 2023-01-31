@@ -6,27 +6,28 @@ import com.oracle.truffle.api.interop.InvalidArrayIndexException;
 import com.oracle.truffle.api.interop.TruffleObject;
 import com.oracle.truffle.api.library.ExportLibrary;
 import com.oracle.truffle.api.library.ExportMessage;
+import it.necst.gpjson.Pair;
 
 import java.nio.MappedByteBuffer;
+import java.util.*;
 
 @ExportLibrary(InteropLibrary.class)
 public class ResultGPJSONQuery extends ResultQuery implements TruffleObject {
-    private final long numberOfLines;
-    private final long[][] lines;
-    private final MappedByteBuffer file;
+    private long numberOfLines = 0;
+    private final NavigableMap<Long, Pair<int[][], MappedByteBuffer>> lines;
 
-    public ResultGPJSONQuery(long numberOfLines, long[][] lines, MappedByteBuffer file) {
-        this.numberOfLines = numberOfLines;
-        this.lines = lines;
-        this.file = file;
+    public ResultGPJSONQuery() {
+        this.lines = new TreeMap<>();
     }
 
-    public long[] getLine(int index) {
-        return this.lines[index];
+    public ResultGPJSONQuery(long numberOfLines, int[][] lines, MappedByteBuffer file) {
+        this();
+        this.addPartition(lines, file, numberOfLines);
     }
 
-    public MappedByteBuffer getFile() {
-        return this.file;
+    public void addPartition(int[][] lines, MappedByteBuffer file, long numberOfLines) {
+        this.lines.put(this.numberOfLines, new Pair<>(lines, file));
+        this.numberOfLines += numberOfLines;
     }
 
     @ExportMessage
@@ -43,7 +44,9 @@ public class ResultGPJSONQuery extends ResultQuery implements TruffleObject {
             throw InvalidArrayIndexException.create(index);
         }
 
-        return new ResultGPJSONLine(this, index, this.lines[(int) index].length / 2);
+        long partitionStart = lines.floorKey(index);
+        Pair<int[][], MappedByteBuffer> pair = lines.get(partitionStart);
+        return new ResultGPJSONLine(pair.getKey()[(int) (index-partitionStart)], pair.getValue());
     }
 
     @ExportMessage

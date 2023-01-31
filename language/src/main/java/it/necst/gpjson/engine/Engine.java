@@ -8,6 +8,7 @@ import com.oracle.truffle.api.library.ExportMessage;
 import it.necst.gpjson.*;
 import it.necst.gpjson.kernel.GpJSONKernel;
 import it.necst.gpjson.result.Result;
+import it.necst.gpjson.result.ResultGPJSONQuery;
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.Value;
 
@@ -37,6 +38,7 @@ public class Engine implements TruffleObject {
                 .allowAllAccess(true)
                 .allowExperimentalOptions(true)
                 .option("grcuda.ExecutionPolicy", "async")
+                .option("grcuda.DeviceSelectionPolicy", "round-robin")
                 // logging settings
                 .option("log.grcuda.com.nvidia.grcuda.level", "FINER")
                 .build();
@@ -69,10 +71,15 @@ public class Engine implements TruffleObject {
         }
     }
 
-    private Result query(String fileName, String[] queries, boolean combined) {
+    private Result query(String fileName, String[] queries, boolean combined, boolean batched) {
         if (kernels.isEmpty()) buildKernels();
-        ExecutionContext exContext = new ExecutionContext(cu, kernels, fileName);
-        return exContext.query(queries, combined);
+        if (batched) {
+            ResultGPJSONQuery query = new BatchedExecutionContext(cu, kernels, fileName, (int) Math.pow(2, 30)).query(queries[0], combined);
+            Result result = new Result();
+            result.addQuery(query);
+            return result;
+        } else
+            return new ExecutionContext(cu, kernels, fileName).query(queries, combined);
     }
 
     private ExecutionContext createContext(String fileName) {
@@ -108,13 +115,14 @@ public class Engine implements TruffleObject {
                 this.buildKernels();
                 return this;
             case QUERY:
-                if ((arguments.length != 3)) {
-                    throw new GpJSONException(QUERY + " function requires 3 arguments");
+                if ((arguments.length != 4)) {
+                    throw new GpJSONException(QUERY + " function requires 4 arguments");
                 }
                 String file = InvokeUtils.expectString(arguments[0], "argument 1 of " + QUERY + " must be a string");
                 String[] queries = InvokeUtils.expectStringArray(arguments[1], "argument 2 of " + QUERY + " must be an array of strings");
                 boolean combined = InvokeUtils.expectBoolean(arguments[2], "argument 3 of " + QUERY + " must be a boolean");
-                return this.query(file, queries, combined);
+                boolean batched = InvokeUtils.expectBoolean(arguments[3], "argument 4 of " + QUERY + " must be a boolean");
+                return this.query(file, queries, combined, batched);
             case CREATECONTEXT:
                 if ((arguments.length != 1)) {
                     throw new GpJSONException(CREATECONTEXT + " function requires 1 arguments");

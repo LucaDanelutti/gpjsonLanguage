@@ -19,8 +19,12 @@ public class Result implements TruffleObject {
         this.resultQueries = new ArrayList<>();
     }
 
-    public void addQuery(long[][] values, MappedByteBuffer file) {
+    public void addQuery(int[][] values, MappedByteBuffer file) {
         resultQueries.add(new ResultGPJSONQuery(values.length, values, file));
+    }
+
+    public void addQuery(ResultGPJSONQuery query) {
+        resultQueries.add(query);
     }
 
     public void addFallbackQuery(List<List<String>> values) {

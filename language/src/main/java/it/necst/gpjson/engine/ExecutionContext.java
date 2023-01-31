@@ -51,7 +51,6 @@ public class ExecutionContext implements TruffleObject {
     private final String fileName;
     private MappedByteBuffer fileBuffer;
     protected Value fileMemory;
-    protected long levelSize;
     private boolean isLoaded = false;
 
     private static final TruffleLogger LOGGER = GpJSONLogger.getLogger(GPJSON_LOGGER);
@@ -70,11 +69,12 @@ public class ExecutionContext implements TruffleObject {
             long fileSize;
             try {
                 fileSize = Files.size(file);
+                if (fileSize > Integer.MAX_VALUE)
+                    throw new GpJSONException("Block mode cannot process files > 2GB");
             } catch (IOException e) {
                 throw new GpJSONException("Failed to get file size");
             }
             fileMemory = cu.invokeMember("DeviceArray", "char", fileSize);
-            levelSize = (fileMemory.getArraySize() + 64 - 1) / 64;
             try (FileChannel channel = FileChannel.open(file)) {
                 if (channel.size() != fileSize) {
                     throw new GpJSONException("Size of file has changed while reading");
@@ -173,7 +173,7 @@ public class ExecutionContext implements TruffleObject {
 
         ResultQuery result;
         if (compiledQuery != null) {
-            long[][] values = this.executor.query(compiledQuery);
+            int[][] values = this.executor.query(compiledQuery);
             result = new ResultGPJSONQuery(values.length, values, fileBuffer);
             LOGGER.log(Level.FINE, query + " executed successfully");
         } else {

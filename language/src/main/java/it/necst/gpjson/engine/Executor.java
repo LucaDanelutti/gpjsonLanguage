@@ -102,7 +102,7 @@ public class Executor {
         kernels.get("create_string_index").execute(gridSize, blockSize).execute(levelSize, stringIndexMemory, stringCarryIndexMemory);
     }
 
-    public long[][] query(JSONPathResult compiledQuery) {
+    public int[][] query(JSONPathResult compiledQuery) {
         if (!isIndexed)
             throw new GpJSONInternalException("You must index the file before querying");
         long start = System.nanoTime();
@@ -120,14 +120,18 @@ public class Executor {
         kernels.get("find_value").execute(512, 1024).execute(fileMemory, fileMemory.getArraySize(), newlineIndexMemory, newlineIndexMemory.getArraySize(), stringIndexMemory, leveledBitmapsIndexMemory, leveledBitmapsIndexMemory.getArraySize(), stringIndexMemory.getArraySize(), queryMemory, compiledQuery.getNumResults(), result);
         UnsafeHelper.LongArray longArray = UnsafeHelper.createLongArray(result.getArraySize());
         result.invokeMember("copyTo", longArray.getAddress());
-        long[][] resultIndexes = new long[(int) numberOfLines][(int) numberOfResults * 2];
+        int[][] resultIndexes = new int[(int) numberOfLines][(int) numberOfResults * 2];
         for (int j = 0; j < numberOfLines; j++) {
             for (int k = 0; k < compiledQuery.getNumResults()*2; k+=2) {
-                resultIndexes[j][k] = longArray.getValueAt(j*numberOfResults*2+ k);
-                resultIndexes[j][k+1] = longArray.getValueAt(j*numberOfResults*2 + k + 1);
+                resultIndexes[j][k] = (int) longArray.getValueAt(j*numberOfResults*2+ k);
+                resultIndexes[j][k+1] = (int) longArray.getValueAt(j*numberOfResults*2 + k + 1);
             }
         }
         LOGGER.log(Level.FINER, "query() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         return resultIndexes;
+    }
+
+    public int getCountNewlines() {
+        return (int) newlineIndexMemory.getArraySize();
     }
 }
