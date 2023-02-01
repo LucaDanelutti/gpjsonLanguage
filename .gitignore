@@ -10,3 +10,4 @@
 target/
 
 component/gpjson-component.jar
+*.nvvp
