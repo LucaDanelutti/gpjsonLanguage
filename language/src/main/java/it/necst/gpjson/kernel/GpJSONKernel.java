@@ -15,7 +15,10 @@ public enum GpJSONKernel {
     INITIALIZE("initialize", "initialize(arr:out pointer sint64, n: sint64, value: sint64)", "it/necst/gpjson/kernels/initialize.cu"),
     SUM1("sum1", "sum1(arr: inout pointer sint32, n: sint32, sum: out pointer sint32)", "it/necst/gpjson/kernels/sum1.cu"),
     SUM2("sum2", "sum2(arr: in pointer sint32, n: sint32, stride: sint32, base: out pointer sint32)", "it/necst/gpjson/kernels/sum2.cu"),
-    SUM3("sum3", "sum3(arr: in pointer sint32, n: sint32, base: in pointer sint32, newArr: out pointer sint32)", "it/necst/gpjson/kernels/sum3.cu");
+    SUM3("sum3", "sum3(arr: in pointer sint32, n: sint32, base: in pointer sint32, newArr: out pointer sint32)", "it/necst/gpjson/kernels/sum3.cu"),
+    XOR1("xor1", "xor1(arr: inout pointer char, n: sint32)", "it/necst/gpjson/kernels/xor1.cu"),
+    XOR2("xor2", "xor2(arr: in pointer char, n: sint32, stride: sint32, base: out pointer char)", "it/necst/gpjson/kernels/xor2.cu"),
+    XOR3("xor3", "xor3(arr: inout pointer char, n: sint32, base: in pointer char)", "it/necst/gpjson/kernels/xor3.cu");
 
     private final String name;
     private final String parameterSignature;

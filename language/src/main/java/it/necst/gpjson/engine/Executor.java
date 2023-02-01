@@ -111,20 +111,12 @@ public class Executor {
             kernels.get("create_newline_index").execute(gridSize, blockSize).execute(fileMemory, fileMemory.getArraySize(), newlineIndexOffset, newlineIndexMemory);
         }
         kernels.get("create_quote_index").execute(gridSize, blockSize).execute(fileMemory, fileMemory.getArraySize(), escapeIndexMemory, stringIndexMemory, stringCarryIndexMemory, levelSize);
-
         start = System.nanoTime();
-        kernels.get("xor1").execute(32,32).execute(newlineCountIndexMemory, newlineCountIndexMemory.getArraySize(), sumPartial);
-        kernels.get("xor2").execute(1,1).execute(newlineCountIndexMemory, newlineCountIndexMemory.getArraySize(), 32*32, sumBase);
-        kernels.get("xor3").execute(32,32).execute(newlineCountIndexMemory, newlineCountIndexMemory.getArraySize(), sumBase, newlineIndexOffset);
-
-        start = System.nanoTime();
-        byte prev = 0;
-        for (int i=0; i<stringCarryIndexMemory.getArraySize(); i++) {
-            byte value = (byte) (stringCarryIndexMemory.getArrayElement(i).asByte() ^ prev);
-            stringCarryIndexMemory.setArrayElement(i, value);
-            prev = value;
-        }
-        LOGGER.log(Level.FINEST, "stringCarryIndexMemory ^ done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+        Value xorBase = cu.invokeMember("DeviceArray", "char", 32*32);
+        kernels.get("xor1").execute(32,32).execute(stringCarryIndexMemory, stringCarryIndexMemory.getArraySize());
+        kernels.get("xor2").execute(1,1).execute(stringCarryIndexMemory, stringCarryIndexMemory.getArraySize(), 32*32, xorBase);
+        kernels.get("xor3").execute(32,32).execute(stringCarryIndexMemory, stringCarryIndexMemory.getArraySize(), xorBase);
+        LOGGER.log(Level.FINEST, "xor() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         kernels.get("create_string_index").execute(gridSize, blockSize).execute(levelSize, stringIndexMemory, stringCarryIndexMemory);
     }
 
