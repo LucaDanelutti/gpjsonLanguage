@@ -90,10 +90,10 @@ public class Executor {
             kernels.get("count_newlines").execute(gridSize, blockSize).execute(fileMemory, fileMemory.getArraySize(), newlineCountIndexMemory);
             kernels.get("create_escape_carry_index").execute(gridSize, blockSize).execute(fileMemory, fileMemory.getArraySize(), stringCarryIndexMemory);
         }
-        Value newlineIndexOffset = cu.invokeMember("DeviceArray", "int", gridSize * blockSize + 1);
         start = System.nanoTime();
+        Value newlineIndexOffset = cu.invokeMember("DeviceArray", "int", gridSize * blockSize + 1);
         Value sumPartial = cu.invokeMember("DeviceArray", "int", 32*32);
-        Value sumBase = cu.invokeMember("DeviceArray", "int", 1);
+        Value sumBase = cu.invokeMember("DeviceArray", "int", 32*32);
         kernels.get("sum1").execute(32,32).execute(newlineCountIndexMemory, newlineCountIndexMemory.getArraySize(), sumPartial);
         kernels.get("sum2").execute(1,1).execute(newlineCountIndexMemory, newlineCountIndexMemory.getArraySize(), 32*32, sumBase);
         kernels.get("sum3").execute(32,32).execute(newlineCountIndexMemory, newlineCountIndexMemory.getArraySize(), sumBase, newlineIndexOffset);
@@ -111,6 +111,12 @@ public class Executor {
             kernels.get("create_newline_index").execute(gridSize, blockSize).execute(fileMemory, fileMemory.getArraySize(), newlineIndexOffset, newlineIndexMemory);
         }
         kernels.get("create_quote_index").execute(gridSize, blockSize).execute(fileMemory, fileMemory.getArraySize(), escapeIndexMemory, stringIndexMemory, stringCarryIndexMemory, levelSize);
+
+        start = System.nanoTime();
+        kernels.get("xor1").execute(32,32).execute(newlineCountIndexMemory, newlineCountIndexMemory.getArraySize(), sumPartial);
+        kernels.get("xor2").execute(1,1).execute(newlineCountIndexMemory, newlineCountIndexMemory.getArraySize(), 32*32, sumBase);
+        kernels.get("xor3").execute(32,32).execute(newlineCountIndexMemory, newlineCountIndexMemory.getArraySize(), sumBase, newlineIndexOffset);
+
         start = System.nanoTime();
         byte prev = 0;
         for (int i=0; i<stringCarryIndexMemory.getArraySize(); i++) {
