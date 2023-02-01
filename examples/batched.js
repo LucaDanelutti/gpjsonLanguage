@@ -17,14 +17,22 @@ for (let i=0; i<numRuns; i++)
 let blockTime = (performance.now() - start) / numRuns;
 
 let batchedCount = 0;
-for (let i=0; i<batched[0].length; i++) {
-    if (batched[0][i] != null)
-        batchedCount++;
+for (let q = 0; q < batched.length; q++) {
+    for (let i = 0; i < batched[q].length; i++) {
+        for (let j = 0; j < batched[q][i].length; j++) {
+            if (batched[q][i][j] != null)
+                batchedCount += 1;
+        }
+    }
 }
 let blockCount = 0;
-for (let i=0; i<block[0].length; i++) {
-    if (block[0][i] != null)
-        blockCount++;
+for (let q = 0; q < block.length; q++) {
+    for (let i = 0; i < block[q].length; i++) {
+        for (let j = 0; j < block[q][i].length; j++) {
+            if (block[q][i][j] != null)
+                blockCount += 1;
+        }
+    }
 }
 
 console.log("Batched query: " + batchedCount + " results in " + batchedTime + "ms");

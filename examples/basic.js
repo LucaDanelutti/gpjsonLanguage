@@ -9,11 +9,15 @@ engine.query("../datasets/twitter_small_records.json", ["$.user.lang"], true, fa
 console.log("First query: " + (performance.now() - start) + "ms");
 
 start = performance.now();
-let results = engine.query("../datasets/twitter_small_records.json", ["$.user.lang"], true, false);
+let result = engine.query("../datasets/twitter_small_records.json", ["$.user.lang"], true, false);
 console.log("Second query: " + (performance.now() - start) + "ms");
 let count = 0;
-for (let i=0; i<results[0].length; i++) {
-    if (results[0][i] != null)
-        count++;
+for (let q = 0; q < result.length; q++) {
+    for (let i = 0; i < result[q].length; i++) {
+        for (let j = 0; j < result[q][i].length; j++) {
+            if (result[q][i][j] != null)
+                count += 1;
+        }
+    }
 }
 console.log("Count: " + count);
