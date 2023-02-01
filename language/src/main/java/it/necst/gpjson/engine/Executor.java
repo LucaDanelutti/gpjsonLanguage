@@ -90,23 +90,25 @@ public class Executor {
             kernels.get("count_newlines").execute(gridSize, blockSize).execute(fileMemory, fileMemory.getArraySize(), newlineCountIndexMemory);
             kernels.get("create_escape_carry_index").execute(gridSize, blockSize).execute(fileMemory, fileMemory.getArraySize(), stringCarryIndexMemory);
         }
+        Value newlineIndexOffset = cu.invokeMember("DeviceArray", "int", gridSize * blockSize + 1);
         start = System.nanoTime();
-        int sum = 1;
-        for (int i=0; i<newlineCountIndexMemory.getArraySize(); i++) {
-            int val = newlineCountIndexMemory.getArrayElement(i).asInt();
-            newlineCountIndexMemory.setArrayElement(i, sum);
-            sum += val;
-        }
-        LOGGER.log(Level.FINEST, "newlineCount sum done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+        Value sumPartial = cu.invokeMember("DeviceArray", "int", 32*32);
+        Value sumBase = cu.invokeMember("DeviceArray", "int", 1);
+        kernels.get("sum1").execute(32,32).execute(newlineCountIndexMemory, newlineCountIndexMemory.getArraySize(), sumPartial);
+        kernels.get("sum2").execute(1,1).execute(newlineCountIndexMemory, newlineCountIndexMemory.getArraySize(), 32*32, sumBase);
+        kernels.get("sum3").execute(32,32).execute(newlineCountIndexMemory, newlineCountIndexMemory.getArraySize(), sumBase, newlineIndexOffset);
+        newlineIndexOffset.setArrayElement(0, 1);
+        int sum = newlineIndexOffset.getArrayElement(newlineIndexOffset.getArraySize()-1).asInt();
+        LOGGER.log(Level.FINEST, "sum() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         newlineIndexMemory = cu.invokeMember("DeviceArray", "long", sum);
         Value escapeIndexMemory = cu.invokeMember("DeviceArray", "long", levelSize);
         if (combined) {
             start = System.nanoTime();
-            kernels.get("create_combined_escape_newline_index").execute(gridSize, blockSize).execute(fileMemory, fileMemory.getArraySize(), stringCarryIndexMemory, newlineCountIndexMemory, escapeIndexMemory, levelSize, newlineIndexMemory);
+            kernels.get("create_combined_escape_newline_index").execute(gridSize, blockSize).execute(fileMemory, fileMemory.getArraySize(), stringCarryIndexMemory, newlineIndexOffset, escapeIndexMemory, levelSize, newlineIndexMemory);
             LOGGER.log(Level.FINEST, "create_combined_escape_newline_index() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         } else {
             kernels.get("create_escape_index").execute(gridSize, blockSize).execute(fileMemory, fileMemory.getArraySize(), stringCarryIndexMemory, escapeIndexMemory, levelSize);
-            kernels.get("create_newline_index").execute(gridSize, blockSize).execute(fileMemory, fileMemory.getArraySize(), newlineCountIndexMemory, newlineIndexMemory);
+            kernels.get("create_newline_index").execute(gridSize, blockSize).execute(fileMemory, fileMemory.getArraySize(), newlineIndexOffset, newlineIndexMemory);
         }
         kernels.get("create_quote_index").execute(gridSize, blockSize).execute(fileMemory, fileMemory.getArraySize(), escapeIndexMemory, stringIndexMemory, stringCarryIndexMemory, levelSize);
         start = System.nanoTime();
