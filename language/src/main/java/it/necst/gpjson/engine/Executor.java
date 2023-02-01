@@ -15,15 +15,17 @@ import static it.necst.gpjson.GpJSONLogger.GPJSON_LOGGER;
 public class Executor {
     private final Value cu;
     private final Map<String,Value> kernels;
-    private final int gridSize = 8; //8 or 512
+    private final int gridSize = 512;
     private final int blockSize = 1024;
+    private final int queryGridSize = 512;
+    private final int queryBlockSize = 1024;
 
     private Value newlineIndexMemory;
     private Value stringIndexMemory;
     private Value leveledBitmapsIndexMemory;
     private long numLevels;
     private boolean isIndexed = false;
-    private boolean combined = false;
+    private final boolean combined;
 
     private final Value fileMemory;
     private final long levelSize;
@@ -53,52 +55,68 @@ public class Executor {
     }
 
     private void createLeveledBitmapsIndex() {
+        long start;
         leveledBitmapsIndexMemory = cu.invokeMember("DeviceArray", "long", levelSize * numLevels);
-        long startInitialize = System.nanoTime();
+        start = System.nanoTime();
         kernels.get("initialize").execute(gridSize, blockSize).execute(leveledBitmapsIndexMemory, leveledBitmapsIndexMemory.getArraySize(), 0);
-        LOGGER.log(Level.FINEST, "initialize done in " + (System.nanoTime() - startInitialize) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+        LOGGER.log(Level.FINEST, "initialize done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         Value carryIndexMemory = cu.invokeMember("DeviceArray", "char", gridSize * blockSize);
+        start = System.nanoTime();
         kernels.get("create_leveled_bitmaps_carry_index").execute(gridSize, blockSize).execute(fileMemory, fileMemory.getArraySize(), stringIndexMemory, carryIndexMemory);
+        LOGGER.log(Level.FINEST, "create_leveled_bitmaps_carry_index done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+        start = System.nanoTime();
         int level = -1;
         for (int i=0; i<carryIndexMemory.getArraySize(); i++) {
             int value = carryIndexMemory.getArrayElement(i).asInt();
             carryIndexMemory.setArrayElement(i, level);
             level += value;
         }
+        LOGGER.log(Level.FINEST, "carryIndexMemory done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+        start = System.nanoTime();
         kernels.get("create_leveled_bitmaps").execute(gridSize, blockSize).execute(fileMemory, fileMemory.getArraySize(), stringIndexMemory, carryIndexMemory, leveledBitmapsIndexMemory, levelSize * numLevels, levelSize, numLevels);
+        LOGGER.log(Level.FINEST, "create_leveled_bitmaps done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
     }
 
     private void createNewlineStringIndex() {
+        long start;
         stringIndexMemory = cu.invokeMember("DeviceArray", "long", levelSize);
         Value stringCarryIndexMemory = cu.invokeMember("DeviceArray", "char", gridSize * blockSize);
         Value newlineCountIndexMemory = cu.invokeMember("DeviceArray", "int", gridSize * blockSize);
-        if (combined)
+        if (combined) {
+            start = System.nanoTime();
             kernels.get("create_combined_escape_carry_newline_count_index").execute(gridSize, blockSize).execute(fileMemory, fileMemory.getArraySize(), stringCarryIndexMemory, newlineCountIndexMemory);
-        else {
+            LOGGER.log(Level.FINEST, "create_combined_escape_carry_newline_count_index() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+        } else {
             kernels.get("count_newlines").execute(gridSize, blockSize).execute(fileMemory, fileMemory.getArraySize(), newlineCountIndexMemory);
             kernels.get("create_escape_carry_index").execute(gridSize, blockSize).execute(fileMemory, fileMemory.getArraySize(), stringCarryIndexMemory);
         }
+        start = System.nanoTime();
         int sum = 1;
         for (int i=0; i<newlineCountIndexMemory.getArraySize(); i++) {
             int val = newlineCountIndexMemory.getArrayElement(i).asInt();
             newlineCountIndexMemory.setArrayElement(i, sum);
             sum += val;
         }
+        LOGGER.log(Level.FINEST, "newlineCount sum done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         newlineIndexMemory = cu.invokeMember("DeviceArray", "long", sum);
         Value escapeIndexMemory = cu.invokeMember("DeviceArray", "long", levelSize);
-        if (combined)
+        if (combined) {
+            start = System.nanoTime();
             kernels.get("create_combined_escape_newline_index").execute(gridSize, blockSize).execute(fileMemory, fileMemory.getArraySize(), stringCarryIndexMemory, newlineCountIndexMemory, escapeIndexMemory, levelSize, newlineIndexMemory);
-        else {
+            LOGGER.log(Level.FINEST, "create_combined_escape_newline_index() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+        } else {
             kernels.get("create_escape_index").execute(gridSize, blockSize).execute(fileMemory, fileMemory.getArraySize(), stringCarryIndexMemory, escapeIndexMemory, levelSize);
             kernels.get("create_newline_index").execute(gridSize, blockSize).execute(fileMemory, fileMemory.getArraySize(), newlineCountIndexMemory, newlineIndexMemory);
         }
         kernels.get("create_quote_index").execute(gridSize, blockSize).execute(fileMemory, fileMemory.getArraySize(), escapeIndexMemory, stringIndexMemory, stringCarryIndexMemory, levelSize);
+        start = System.nanoTime();
         byte prev = 0;
         for (int i=0; i<stringCarryIndexMemory.getArraySize(); i++) {
             byte value = (byte) (stringCarryIndexMemory.getArrayElement(i).asByte() ^ prev);
             stringCarryIndexMemory.setArrayElement(i, value);
             prev = value;
         }
+        LOGGER.log(Level.FINEST, "stringCarryIndexMemory ^ done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         kernels.get("create_string_index").execute(gridSize, blockSize).execute(levelSize, stringIndexMemory, stringCarryIndexMemory);
     }
 
@@ -117,7 +135,7 @@ public class Executor {
         for (int j = 0; j < queryByteArray.length; j++) {
             queryMemory.setArrayElement(j, queryByteArray[j]);
         }
-        kernels.get("find_value").execute(512, 1024).execute(fileMemory, fileMemory.getArraySize(), newlineIndexMemory, newlineIndexMemory.getArraySize(), stringIndexMemory, leveledBitmapsIndexMemory, leveledBitmapsIndexMemory.getArraySize(), stringIndexMemory.getArraySize(), queryMemory, compiledQuery.getNumResults(), result);
+        kernels.get("find_value").execute(queryGridSize, queryBlockSize).execute(fileMemory, fileMemory.getArraySize(), newlineIndexMemory, newlineIndexMemory.getArraySize(), stringIndexMemory, leveledBitmapsIndexMemory, leveledBitmapsIndexMemory.getArraySize(), stringIndexMemory.getArraySize(), queryMemory, compiledQuery.getNumResults(), result);
         UnsafeHelper.LongArray longArray = UnsafeHelper.createLongArray(result.getArraySize());
         result.invokeMember("copyTo", longArray.getAddress());
         int[][] resultIndexes = new int[(int) numberOfLines][(int) numberOfResults * 2];
