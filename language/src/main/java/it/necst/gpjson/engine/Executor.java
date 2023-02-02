@@ -67,11 +67,11 @@ public class Executor {
         LOGGER.log(Level.FINEST, "create_leveled_bitmaps_carry_index done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         start = System.nanoTime();
         Value carryIndexMemoryWithOffset = cu.invokeMember("DeviceArray", "char", gridSize * blockSize + 1);
+        carryIndexMemoryWithOffset.setArrayElement(0, -1);
         Value sumBase = cu.invokeMember("DeviceArray", "char", 32*32);
         kernels.get("char_sum1").execute(32,32).execute(carryIndexMemory, carryIndexMemory.getArraySize());
         kernels.get("char_sum2").execute(1,1).execute(carryIndexMemory, carryIndexMemory.getArraySize(), 32*32, -1, sumBase);
         kernels.get("char_sum3").execute(32,32).execute(carryIndexMemory, carryIndexMemory.getArraySize(), sumBase, 1, carryIndexMemoryWithOffset);
-        carryIndexMemoryWithOffset.setArrayElement(0, -1);
         LOGGER.log(Level.FINEST, "sum() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         start = System.nanoTime();
         kernels.get("create_leveled_bitmaps").execute(gridSize, blockSize).execute(fileMemory, fileMemory.getArraySize(), stringIndexMemory, carryIndexMemoryWithOffset, leveledBitmapsIndexMemory, levelSize * numLevels, levelSize, numLevels);
