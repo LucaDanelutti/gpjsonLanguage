@@ -150,7 +150,8 @@ public class ExecutionContext implements TruffleObject {
             JSONPathResult compiledQuery = compiledQueries[i];
             String query = queries[i];
             if (compiledQuery != null) {
-                result.addQuery(this.executor.query(compiledQuery), this.fileBuffer);
+                this.executor.query(compiledQuery);
+                result.addQuery(this.executor.copyBuildResultArray(compiledQuery), this.fileBuffer);
                 LOGGER.log(Level.FINE, query + " executed successfully");
             } else {
                 result.addFallbackQuery(this.fallbackQuery(query));
@@ -173,7 +174,8 @@ public class ExecutionContext implements TruffleObject {
 
         ResultQuery result;
         if (compiledQuery != null) {
-            int[][] values = this.executor.query(compiledQuery);
+            this.executor.query(compiledQuery);
+            int[][] values = this.executor.copyBuildResultArray(compiledQuery);
             result = new ResultGPJSONQuery(values.length, values, fileBuffer);
             LOGGER.log(Level.FINE, query + " executed successfully");
         } else {

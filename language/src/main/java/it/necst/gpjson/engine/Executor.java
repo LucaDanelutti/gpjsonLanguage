@@ -25,11 +25,15 @@ public class Executor {
     private Value stringIndexMemory;
     private Value leveledBitmapsIndexMemory;
     private long numLevels;
-    private boolean isIndexed = false;
+    private int numLines;
     private final boolean combined;
+    private boolean isIndexed = false;
 
     private final Value fileMemory;
     private final long levelSize;
+
+    private Value resultMemory;
+    private boolean isQueried = false;
 
     private static final TruffleLogger LOGGER = GpJSONLogger.getLogger(GPJSON_LOGGER);
 
@@ -98,9 +102,9 @@ public class Executor {
         kernels.get("int_sum2").execute(1,1).execute(newlineCountIndexMemory, newlineCountIndexMemory.getArraySize(), 32*32, 1, sumBase);
         kernels.get("int_sum3").execute(32,32).execute(newlineCountIndexMemory, newlineCountIndexMemory.getArraySize(), sumBase, 1, newlineIndexOffset);
         newlineIndexOffset.setArrayElement(0, 1);
-        int sum = newlineIndexOffset.getArrayElement(newlineIndexOffset.getArraySize()-1).asInt();
+        numLines = newlineIndexOffset.getArrayElement(newlineIndexOffset.getArraySize()-1).asInt();
         LOGGER.log(Level.FINEST, "sum() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
-        newlineIndexMemory = cu.invokeMember("DeviceArray", "long", sum);
+        newlineIndexMemory = cu.invokeMember("DeviceArray", "long", numLines);
         Value escapeIndexMemory = cu.invokeMember("DeviceArray", "long", levelSize);
         if (combined) {
             start = System.nanoTime();
@@ -120,17 +124,16 @@ public class Executor {
         kernels.get("create_string_index").execute(gridSize, blockSize).execute(levelSize, stringIndexMemory, stringCarryIndexMemory);
     }
 
-    public int[][] query(JSONPathResult compiledQuery) {
+    public void query(JSONPathResult compiledQuery) {
         long localStart;
+        long start = System.nanoTime();
         if (!isIndexed)
             throw new GpJSONException("You must index the file before querying");
-        long start = System.nanoTime();
-        long numberOfLines = newlineIndexMemory.getArraySize();
         long numberOfResults = compiledQuery.getNumResults();
-        Value result = cu.invokeMember("DeviceArray", "long", numberOfLines * 2 * numberOfResults);
+        resultMemory = cu.invokeMember("DeviceArray", "long", numLines * 2 * numberOfResults);
         Value queryMemory = cu.invokeMember("DeviceArray", "char", compiledQuery.getIr().size());
         localStart = System.nanoTime();
-        kernels.get("initialize").execute(gridSize, blockSize).execute(result, result.getArraySize(), -1);
+        kernels.get("initialize").execute(gridSize, blockSize).execute(resultMemory, resultMemory.getArraySize(), -1);
         LOGGER.log(Level.FINEST, "initialize() done in " + (System.nanoTime() - localStart) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         localStart = System.nanoTime();
         byte[] queryByteArray = compiledQuery.getIr().toByteArray();
@@ -139,22 +142,31 @@ public class Executor {
         }
         LOGGER.log(Level.FINEST, "copyCompiledQuery() done in " + (System.nanoTime() - localStart) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         localStart = System.nanoTime();
-        kernels.get("find_value").execute(queryGridSize, queryBlockSize).execute(fileMemory, fileMemory.getArraySize(), newlineIndexMemory, newlineIndexMemory.getArraySize(), stringIndexMemory, leveledBitmapsIndexMemory, leveledBitmapsIndexMemory.getArraySize(), stringIndexMemory.getArraySize(), queryMemory, compiledQuery.getNumResults(), result);
+        kernels.get("find_value").execute(queryGridSize, queryBlockSize).execute(fileMemory, fileMemory.getArraySize(), newlineIndexMemory, newlineIndexMemory.getArraySize(), stringIndexMemory, leveledBitmapsIndexMemory, leveledBitmapsIndexMemory.getArraySize(), stringIndexMemory.getArraySize(), queryMemory, compiledQuery.getNumResults(), resultMemory);
         LOGGER.log(Level.FINEST, "find_value() done in " + (System.nanoTime() - localStart) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+        LOGGER.log(Level.FINER, "query() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+    }
+
+    public int[][] copyBuildResultArray(JSONPathResult compiledQuery) {
+        long localStart;
+        long start = System.nanoTime();
+        if (!isQueried)
+            throw new GpJSONException("You must query the file before retrieving the results");
+        long numberOfResults = compiledQuery.getNumResults();
         localStart = System.nanoTime();
-        UnsafeHelper.LongArray longArray = UnsafeHelper.createLongArray(result.getArraySize());
-        result.invokeMember("copyTo", longArray.getAddress());
+        UnsafeHelper.LongArray longArray = UnsafeHelper.createLongArray(resultMemory.getArraySize());
+        resultMemory.invokeMember("copyTo", longArray.getAddress());
         LOGGER.log(Level.FINEST, "copyTo() done in " + (System.nanoTime() - localStart) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         localStart = System.nanoTime();
-        int[][] resultIndexes = new int[(int) numberOfLines][(int) numberOfResults * 2];
-        for (int j = 0; j < numberOfLines; j++) {
-            for (int k = 0; k < compiledQuery.getNumResults()*2; k+=2) {
+        int[][] resultIndexes = new int[numLines][(int) numberOfResults * 2];
+        for (int j = 0; j < numLines; j++) {
+            for (int k = 0; k < numberOfResults*2; k+=2) {
                 resultIndexes[j][k] = (int) longArray.getValueAt(j*numberOfResults*2+ k);
                 resultIndexes[j][k+1] = (int) longArray.getValueAt(j*numberOfResults*2 + k + 1);
             }
         }
         LOGGER.log(Level.FINEST, "resultIndexes() done in " + (System.nanoTime() - localStart) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
-        LOGGER.log(Level.FINER, "query() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+        LOGGER.log(Level.FINER, "copyBuildResultArray() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         return resultIndexes;
     }
 

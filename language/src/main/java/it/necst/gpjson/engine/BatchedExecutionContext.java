@@ -113,7 +113,8 @@ public class BatchedExecutionContext {
                 fileMemory[i].invokeMember("copyFrom", byteArray.getAddress());
                 Executor ex = new Executor(cu, kernels, fileMemory[i], combined);
                 ex.buildIndexes(compiledQuery.getMaxDepth());
-                int[][] lines = ex.query(compiledQuery);
+                ex.query(compiledQuery);
+                int[][] lines = ex.copyBuildResultArray(compiledQuery);
                 result.addPartition(lines, fileBuffer[i], ex.getCountNewlines());
                 LOGGER.log(Level.FINER, "partition " + i + " processed in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
             }
