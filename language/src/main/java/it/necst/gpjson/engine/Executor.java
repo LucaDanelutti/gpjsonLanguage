@@ -114,14 +114,18 @@ public class Executor {
             kernels.get("create_escape_index").execute(gridSize, blockSize).execute(fileMemory, fileMemory.getArraySize(), stringCarryIndexMemory, escapeIndexMemory, levelSize);
             kernels.get("create_newline_index").execute(gridSize, blockSize).execute(fileMemory, fileMemory.getArraySize(), newlineIndexOffset, newlineIndexMemory);
         }
+        start = System.nanoTime();
         kernels.get("create_quote_index").execute(gridSize, blockSize).execute(fileMemory, fileMemory.getArraySize(), escapeIndexMemory, stringIndexMemory, stringCarryIndexMemory, levelSize);
+        LOGGER.log(Level.FINEST, "create_quote_index() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         start = System.nanoTime();
         Value xorBase = cu.invokeMember("DeviceArray", "char", 32*32);
         kernels.get("xor1").execute(32,32).execute(stringCarryIndexMemory, stringCarryIndexMemory.getArraySize());
         kernels.get("xor2").execute(1,1).execute(stringCarryIndexMemory, stringCarryIndexMemory.getArraySize(), 32*32, xorBase);
         kernels.get("xor3").execute(32,32).execute(stringCarryIndexMemory, stringCarryIndexMemory.getArraySize(), xorBase);
         LOGGER.log(Level.FINEST, "xor() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+        start = System.nanoTime();
         kernels.get("create_string_index").execute(gridSize, blockSize).execute(levelSize, stringIndexMemory, stringCarryIndexMemory);
+        LOGGER.log(Level.FINEST, "create_string_index() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
     }
 
     public void query(JSONPathResult compiledQuery) {
