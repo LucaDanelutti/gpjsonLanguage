@@ -1,6 +1,7 @@
 package it.necst.gpjson.engine;
 
 import com.oracle.truffle.api.TruffleLogger;
+import it.necst.gpjson.GpJSONException;
 import it.necst.gpjson.GpJSONInternalException;
 import it.necst.gpjson.GpJSONLogger;
 import it.necst.gpjson.jsonpath.JSONPathResult;
@@ -65,15 +66,15 @@ public class Executor {
         kernels.get("create_leveled_bitmaps_carry_index").execute(gridSize, blockSize).execute(fileMemory, fileMemory.getArraySize(), stringIndexMemory, carryIndexMemory);
         LOGGER.log(Level.FINEST, "create_leveled_bitmaps_carry_index done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         start = System.nanoTime();
-        int level = -1;
-        for (int i=0; i<carryIndexMemory.getArraySize(); i++) {
-            int value = carryIndexMemory.getArrayElement(i).asInt();
-            carryIndexMemory.setArrayElement(i, level);
-            level += value;
-        }
-        LOGGER.log(Level.FINEST, "carryIndexMemory done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+        Value carryIndexMemoryWithOffset = cu.invokeMember("DeviceArray", "char", gridSize * blockSize + 1);
+        Value sumBase = cu.invokeMember("DeviceArray", "char", 32*32);
+        kernels.get("char_sum1").execute(32,32).execute(carryIndexMemory, carryIndexMemory.getArraySize());
+        kernels.get("char_sum2").execute(1,1).execute(carryIndexMemory, carryIndexMemory.getArraySize(), 32*32, -1, sumBase);
+        kernels.get("char_sum3").execute(32,32).execute(carryIndexMemory, carryIndexMemory.getArraySize(), sumBase, 1, carryIndexMemoryWithOffset);
+        carryIndexMemoryWithOffset.setArrayElement(0, -1);
+        LOGGER.log(Level.FINEST, "sum() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         start = System.nanoTime();
-        kernels.get("create_leveled_bitmaps").execute(gridSize, blockSize).execute(fileMemory, fileMemory.getArraySize(), stringIndexMemory, carryIndexMemory, leveledBitmapsIndexMemory, levelSize * numLevels, levelSize, numLevels);
+        kernels.get("create_leveled_bitmaps").execute(gridSize, blockSize).execute(fileMemory, fileMemory.getArraySize(), stringIndexMemory, carryIndexMemoryWithOffset, leveledBitmapsIndexMemory, levelSize * numLevels, levelSize, numLevels);
         LOGGER.log(Level.FINEST, "create_leveled_bitmaps done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
     }
 
@@ -93,9 +94,9 @@ public class Executor {
         start = System.nanoTime();
         Value newlineIndexOffset = cu.invokeMember("DeviceArray", "int", gridSize * blockSize + 1);
         Value sumBase = cu.invokeMember("DeviceArray", "int", 32*32);
-        kernels.get("sum1").execute(32,32).execute(newlineCountIndexMemory, newlineCountIndexMemory.getArraySize());
-        kernels.get("sum2").execute(1,1).execute(newlineCountIndexMemory, newlineCountIndexMemory.getArraySize(), 32*32, sumBase);
-        kernels.get("sum3").execute(32,32).execute(newlineCountIndexMemory, newlineCountIndexMemory.getArraySize(), sumBase, newlineIndexOffset);
+        kernels.get("int_sum1").execute(32,32).execute(newlineCountIndexMemory, newlineCountIndexMemory.getArraySize());
+        kernels.get("int_sum2").execute(1,1).execute(newlineCountIndexMemory, newlineCountIndexMemory.getArraySize(), 32*32, 1, sumBase);
+        kernels.get("int_sum3").execute(32,32).execute(newlineCountIndexMemory, newlineCountIndexMemory.getArraySize(), sumBase, 1, newlineIndexOffset);
         newlineIndexOffset.setArrayElement(0, 1);
         int sum = newlineIndexOffset.getArrayElement(newlineIndexOffset.getArraySize()-1).asInt();
         LOGGER.log(Level.FINEST, "sum() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
@@ -121,7 +122,7 @@ public class Executor {
 
     public int[][] query(JSONPathResult compiledQuery) {
         if (!isIndexed)
-            throw new GpJSONInternalException("You must index the file before querying");
+            throw new GpJSONException("You must index the file before querying");
         long start = System.nanoTime();
         long numberOfLines = newlineIndexMemory.getArraySize();
         long numberOfResults = compiledQuery.getNumResults();

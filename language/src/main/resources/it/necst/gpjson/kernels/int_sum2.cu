@@ -1,6 +1,6 @@
-__global__ void sum2(int *arr, int n, int stride, int *base) {
+__global__ void sum2(int *arr, int n, int stride, int startingValue, int *base) {
     long elems_per_thread = (n+stride-1) / stride;
-    int sum = 1;
+    int sum = startingValue;
     for (long i = 0; i < stride-1; i++) {
         base[i] = sum;
         sum += arr[elems_per_thread * (i+1) - 1];
