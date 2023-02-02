@@ -60,11 +60,11 @@ public class Executor {
         leveledBitmapsIndexMemory = cu.invokeMember("DeviceArray", "long", levelSize * numLevels);
         start = System.nanoTime();
         kernels.get("initialize").execute(gridSize, blockSize).execute(leveledBitmapsIndexMemory, leveledBitmapsIndexMemory.getArraySize(), 0);
-        LOGGER.log(Level.FINEST, "initialize done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+        LOGGER.log(Level.FINEST, "initialize() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         Value carryIndexMemory = cu.invokeMember("DeviceArray", "char", gridSize * blockSize);
         start = System.nanoTime();
         kernels.get("create_leveled_bitmaps_carry_index").execute(gridSize, blockSize).execute(fileMemory, fileMemory.getArraySize(), stringIndexMemory, carryIndexMemory);
-        LOGGER.log(Level.FINEST, "create_leveled_bitmaps_carry_index done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+        LOGGER.log(Level.FINEST, "create_leveled_bitmaps_carry_index() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         start = System.nanoTime();
         Value carryIndexMemoryWithOffset = cu.invokeMember("DeviceArray", "char", gridSize * blockSize + 1);
         carryIndexMemoryWithOffset.setArrayElement(0, -1);
@@ -75,7 +75,7 @@ public class Executor {
         LOGGER.log(Level.FINEST, "sum() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         start = System.nanoTime();
         kernels.get("create_leveled_bitmaps").execute(gridSize, blockSize).execute(fileMemory, fileMemory.getArraySize(), stringIndexMemory, carryIndexMemoryWithOffset, leveledBitmapsIndexMemory, levelSize * numLevels, levelSize, numLevels);
-        LOGGER.log(Level.FINEST, "create_leveled_bitmaps done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+        LOGGER.log(Level.FINEST, "create_leveled_bitmaps() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
     }
 
     private void createNewlineStringIndex() {
@@ -121,6 +121,7 @@ public class Executor {
     }
 
     public int[][] query(JSONPathResult compiledQuery) {
+        long localStart;
         if (!isIndexed)
             throw new GpJSONException("You must index the file before querying");
         long start = System.nanoTime();
@@ -128,16 +129,23 @@ public class Executor {
         long numberOfResults = compiledQuery.getNumResults();
         Value result = cu.invokeMember("DeviceArray", "long", numberOfLines * 2 * numberOfResults);
         Value queryMemory = cu.invokeMember("DeviceArray", "char", compiledQuery.getIr().size());
-        long startInitialize = System.nanoTime();
+        localStart = System.nanoTime();
         kernels.get("initialize").execute(gridSize, blockSize).execute(result, result.getArraySize(), -1);
-        LOGGER.log(Level.FINEST, "initialize done in " + (System.nanoTime() - startInitialize) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+        LOGGER.log(Level.FINEST, "initialize() done in " + (System.nanoTime() - localStart) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+        localStart = System.nanoTime();
         byte[] queryByteArray = compiledQuery.getIr().toByteArray();
         for (int j = 0; j < queryByteArray.length; j++) {
             queryMemory.setArrayElement(j, queryByteArray[j]);
         }
+        LOGGER.log(Level.FINEST, "copyCompiledQuery() done in " + (System.nanoTime() - localStart) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+        localStart = System.nanoTime();
         kernels.get("find_value").execute(queryGridSize, queryBlockSize).execute(fileMemory, fileMemory.getArraySize(), newlineIndexMemory, newlineIndexMemory.getArraySize(), stringIndexMemory, leveledBitmapsIndexMemory, leveledBitmapsIndexMemory.getArraySize(), stringIndexMemory.getArraySize(), queryMemory, compiledQuery.getNumResults(), result);
+        LOGGER.log(Level.FINEST, "find_value() done in " + (System.nanoTime() - localStart) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+        localStart = System.nanoTime();
         UnsafeHelper.LongArray longArray = UnsafeHelper.createLongArray(result.getArraySize());
         result.invokeMember("copyTo", longArray.getAddress());
+        LOGGER.log(Level.FINEST, "copyTo() done in " + (System.nanoTime() - localStart) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+        localStart = System.nanoTime();
         int[][] resultIndexes = new int[(int) numberOfLines][(int) numberOfResults * 2];
         for (int j = 0; j < numberOfLines; j++) {
             for (int k = 0; k < compiledQuery.getNumResults()*2; k+=2) {
@@ -145,6 +153,7 @@ public class Executor {
                 resultIndexes[j][k+1] = (int) longArray.getValueAt(j*numberOfResults*2 + k + 1);
             }
         }
+        LOGGER.log(Level.FINEST, "resultIndexes() done in " + (System.nanoTime() - localStart) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         LOGGER.log(Level.FINER, "query() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         return resultIndexes;
     }
