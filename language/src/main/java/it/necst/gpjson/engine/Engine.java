@@ -37,8 +37,8 @@ public class Engine implements TruffleObject {
                 .newBuilder()
                 .allowAllAccess(true)
                 .allowExperimentalOptions(true)
-                .option("grcuda.ExecutionPolicy", "sync")
-                .option("grcuda.DeviceSelectionPolicy", "round-robin")
+                .option("grcuda.ExecutionPolicy", "async")
+                .option("grcuda.DeviceSelectionPolicy", "min-transfer-size")
                 .option("grcuda.NumberOfGPUs", "2")
                 // logging settings
                 .option("log.grcuda.com.nvidia.grcuda.level", "FINER")

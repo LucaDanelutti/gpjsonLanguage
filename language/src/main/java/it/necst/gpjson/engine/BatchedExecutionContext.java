@@ -27,11 +27,10 @@ public class BatchedExecutionContext {
     private final Map<String,Value> kernels;
     private final int partitionSize;
 
-    //File
     private final String fileName;
     private MappedByteBuffer[] fileBuffer;
     private Value[] fileMemory;
-    private long levelSize;
+    private Executor[] executors;
 
     private static final TruffleLogger LOGGER = GpJSONLogger.getLogger(GPJSON_LOGGER);
 
@@ -67,6 +66,7 @@ public class BatchedExecutionContext {
     }
 
     public ResultGPJSONQuery query(String query, boolean combined) {
+        long start;
         JSONPathResult compiledQuery;
         try {
             compiledQuery = this.compileQuery(query);
@@ -98,12 +98,13 @@ public class BatchedExecutionContext {
             }
             fileBuffer = new MappedByteBuffer[partitions.size()];
             fileMemory = new Value[partitions.size()];
+            executors = new Executor[partitions.size()];
             LOGGER.log(Level.FINE, "Generated " + partitions.size() + " partitions (partition size = " + partitionSize + ")");
             LOGGER.log(Level.FINER, "partitions: " + partitions);
 
-            ResultGPJSONQuery result = new ResultGPJSONQuery();
             for (int i=0; i < partitions.size(); i++) {
-                long start = System.nanoTime();
+                start = System.nanoTime();
+                long localStart = System.nanoTime();
                 long startIndex = partitions.get(i);
                 long endIndex = (i == partitions.size()-1) ? fileSize : partitions.get(i+1) - 1; //skip the newline character
                 fileBuffer[i] = channel.map(FileChannel.MapMode.READ_ONLY, startIndex, endIndex-startIndex);
@@ -111,12 +112,17 @@ public class BatchedExecutionContext {
                 UnsafeHelper.ByteArray byteArray = UnsafeHelper.createByteArray(fileBuffer[i]);
                 fileMemory[i] = cu.invokeMember("DeviceArray", "char", endIndex-startIndex);
                 fileMemory[i].invokeMember("copyFrom", byteArray.getAddress());
-                Executor ex = new Executor(cu, kernels, fileMemory[i], combined);
-                ex.buildIndexes(compiledQuery.getMaxDepth());
-                ex.query(compiledQuery);
-                int[][] lines = ex.copyBuildResultArray(compiledQuery);
-                result.addPartition(lines, fileBuffer[i], ex.getCountNewlines());
-                LOGGER.log(Level.FINER, "partition " + i + " processed in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+                LOGGER.log(Level.FINEST, "loadFile() done in " + (System.nanoTime() - localStart) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+                executors[i] = new Executor(cu, kernels, fileMemory[i], combined);
+                executors[i].buildIndexes(compiledQuery.getMaxDepth());
+                executors[i].query(compiledQuery);
+                LOGGER.log(Level.FINER, "Partition " + i + " processed in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+            }
+
+            ResultGPJSONQuery result = new ResultGPJSONQuery();
+            for (int i=0; i < partitions.size(); i++) {
+                int[][] lines = executors[i].copyBuildResultArray(compiledQuery);
+                result.addPartition(lines, fileBuffer[i], executors[i].getCountNewlines());
             }
             return result;
         } catch (IOException e) {
