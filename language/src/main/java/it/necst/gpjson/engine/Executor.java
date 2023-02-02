@@ -92,9 +92,8 @@ public class Executor {
         }
         start = System.nanoTime();
         Value newlineIndexOffset = cu.invokeMember("DeviceArray", "int", gridSize * blockSize + 1);
-        Value sumPartial = cu.invokeMember("DeviceArray", "int", 32*32);
         Value sumBase = cu.invokeMember("DeviceArray", "int", 32*32);
-        kernels.get("sum1").execute(32,32).execute(newlineCountIndexMemory, newlineCountIndexMemory.getArraySize(), sumPartial);
+        kernels.get("sum1").execute(32,32).execute(newlineCountIndexMemory, newlineCountIndexMemory.getArraySize());
         kernels.get("sum2").execute(1,1).execute(newlineCountIndexMemory, newlineCountIndexMemory.getArraySize(), 32*32, sumBase);
         kernels.get("sum3").execute(32,32).execute(newlineCountIndexMemory, newlineCountIndexMemory.getArraySize(), sumBase, newlineIndexOffset);
         newlineIndexOffset.setArrayElement(0, 1);

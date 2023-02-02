@@ -13,7 +13,7 @@ public enum GpJSONKernel {
     CREATE_COMBINED_ESCAPE_CARRY_NEWLINE_COUNT_INDEX("create_combined_escape_carry_newline_count_index", "create_combined_escape_carry_newline_count_index(file: inout pointer char, n: sint64, escape_carry_index: inout pointer char, newline_count_index: inout pointer sint32)", "it/necst/gpjson/kernels/create_combined_escape_carry_newline_count_index.cu"),
     CREATE_COMBINED_ESCAPE_NEWLINE_INDEX("create_combined_escape_newline_index", "create_combined_escape_newline_index(file: inout pointer char, n: sint64, escape_carry_index: inout pointer char, newline_count_index: inout pointer sint32, escape_index: inout pointer sint64, escape_index_size: sint64, newline_index: inout pointer sint64)", "it/necst/gpjson/kernels/create_combined_escape_newline_index.cu"),
     INITIALIZE("initialize", "initialize(arr:out pointer sint64, n: sint64, value: sint64)", "it/necst/gpjson/kernels/initialize.cu"),
-    SUM1("sum1", "sum1(arr: inout pointer sint32, n: sint32, sum: out pointer sint32)", "it/necst/gpjson/kernels/sum1.cu"),
+    SUM1("sum1", "sum1(arr: inout pointer sint32, n: sint32)", "it/necst/gpjson/kernels/sum1.cu"),
     SUM2("sum2", "sum2(arr: in pointer sint32, n: sint32, stride: sint32, base: out pointer sint32)", "it/necst/gpjson/kernels/sum2.cu"),
     SUM3("sum3", "sum3(arr: in pointer sint32, n: sint32, base: in pointer sint32, newArr: out pointer sint32)", "it/necst/gpjson/kernels/sum3.cu"),
     XOR1("xor1", "xor1(arr: inout pointer char, n: sint32)", "it/necst/gpjson/kernels/xor1.cu"),
