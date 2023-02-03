@@ -16,8 +16,10 @@ import static it.necst.gpjson.GpJSONLogger.GPJSON_LOGGER;
 public class Executor {
     private final Value cu;
     private final Map<String,Value> kernels;
-    private final int gridSize = 512;
+    private final int gridSize = 1024*16;
     private final int blockSize = 1024;
+    private final int reductionGridSize = 32;
+    private final int reductionBlockSize = 32;
     private final int queryGridSize = 512;
     private final int queryBlockSize = 1024;
 
@@ -72,10 +74,10 @@ public class Executor {
         start = System.nanoTime();
         Value carryIndexMemoryWithOffset = cu.invokeMember("DeviceArray", "char", gridSize * blockSize + 1);
         carryIndexMemoryWithOffset.setArrayElement(0, -1);
-        Value sumBase = cu.invokeMember("DeviceArray", "char", 32*32);
-        kernels.get("char_sum1").execute(32,32).execute(carryIndexMemory, carryIndexMemory.getArraySize());
-        kernels.get("char_sum2").execute(1,1).execute(carryIndexMemory, carryIndexMemory.getArraySize(), 32*32, -1, sumBase);
-        kernels.get("char_sum3").execute(32,32).execute(carryIndexMemory, carryIndexMemory.getArraySize(), sumBase, 1, carryIndexMemoryWithOffset);
+        Value sumBase = cu.invokeMember("DeviceArray", "char", reductionGridSize*reductionBlockSize);
+        kernels.get("char_sum1").execute(reductionGridSize, reductionBlockSize).execute(carryIndexMemory, carryIndexMemory.getArraySize());
+        kernels.get("char_sum2").execute(1, 1).execute(carryIndexMemory, carryIndexMemory.getArraySize(), reductionGridSize*reductionBlockSize, -1, sumBase);
+        kernels.get("char_sum3").execute(reductionGridSize, reductionBlockSize).execute(carryIndexMemory, carryIndexMemory.getArraySize(), sumBase, 1, carryIndexMemoryWithOffset);
         LOGGER.log(Level.FINEST, "sum() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         start = System.nanoTime();
         kernels.get("create_leveled_bitmaps").execute(gridSize, blockSize).execute(fileMemory, fileMemory.getArraySize(), stringIndexMemory, carryIndexMemoryWithOffset, leveledBitmapsIndexMemory, levelSize * numLevels, levelSize, numLevels);
@@ -97,10 +99,10 @@ public class Executor {
         }
         start = System.nanoTime();
         Value newlineIndexOffset = cu.invokeMember("DeviceArray", "int", gridSize * blockSize + 1);
-        Value sumBase = cu.invokeMember("DeviceArray", "int", 32*32);
-        kernels.get("int_sum1").execute(32,32).execute(newlineCountIndexMemory, newlineCountIndexMemory.getArraySize());
-        kernels.get("int_sum2").execute(1,1).execute(newlineCountIndexMemory, newlineCountIndexMemory.getArraySize(), 32*32, 1, sumBase);
-        kernels.get("int_sum3").execute(32,32).execute(newlineCountIndexMemory, newlineCountIndexMemory.getArraySize(), sumBase, 1, newlineIndexOffset);
+        Value sumBase = cu.invokeMember("DeviceArray", "int", reductionGridSize*reductionBlockSize);
+        kernels.get("int_sum1").execute(reductionGridSize, reductionBlockSize).execute(newlineCountIndexMemory, newlineCountIndexMemory.getArraySize());
+        kernels.get("int_sum2").execute(1, 1).execute(newlineCountIndexMemory, newlineCountIndexMemory.getArraySize(), reductionGridSize*reductionBlockSize, 1, sumBase);
+        kernels.get("int_sum3").execute(reductionGridSize, reductionBlockSize).execute(newlineCountIndexMemory, newlineCountIndexMemory.getArraySize(), sumBase, 1, newlineIndexOffset);
         newlineIndexOffset.setArrayElement(0, 1);
         numLines = newlineIndexOffset.getArrayElement(newlineIndexOffset.getArraySize()-1).asInt();
         LOGGER.log(Level.FINEST, "sum() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
@@ -118,10 +120,10 @@ public class Executor {
         kernels.get("create_quote_index").execute(gridSize, blockSize).execute(fileMemory, fileMemory.getArraySize(), escapeIndexMemory, stringIndexMemory, stringCarryIndexMemory, levelSize);
         LOGGER.log(Level.FINEST, "create_quote_index() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         start = System.nanoTime();
-        Value xorBase = cu.invokeMember("DeviceArray", "char", 32*32);
-        kernels.get("xor1").execute(32,32).execute(stringCarryIndexMemory, stringCarryIndexMemory.getArraySize());
-        kernels.get("xor2").execute(1,1).execute(stringCarryIndexMemory, stringCarryIndexMemory.getArraySize(), 32*32, xorBase);
-        kernels.get("xor3").execute(32,32).execute(stringCarryIndexMemory, stringCarryIndexMemory.getArraySize(), xorBase);
+        Value xorBase = cu.invokeMember("DeviceArray", "char", reductionGridSize*reductionBlockSize);
+        kernels.get("xor1").execute(reductionGridSize, reductionBlockSize).execute(stringCarryIndexMemory, stringCarryIndexMemory.getArraySize());
+        kernels.get("xor2").execute(1, 1).execute(stringCarryIndexMemory, stringCarryIndexMemory.getArraySize(), reductionGridSize*reductionBlockSize, xorBase);
+        kernels.get("xor3").execute(reductionGridSize, reductionBlockSize).execute(stringCarryIndexMemory, stringCarryIndexMemory.getArraySize(), xorBase);
         LOGGER.log(Level.FINEST, "xor() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         start = System.nanoTime();
         kernels.get("create_string_index").execute(gridSize, blockSize).execute(levelSize, stringIndexMemory, stringCarryIndexMemory);
