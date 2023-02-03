@@ -7,16 +7,18 @@ engine.query("../datasets/twitter_small_records_2x.json", ["$.user.lang"], true,
 console.log("### WARMUP END ###")
 
 start = performance.now();
+let block;
+for (let i=0; i<numRuns; i++)
+    block = engine.query("../datasets/twitter_small_records_2x.json", ["$.user.lang"], true, false);
+let blockTime = (performance.now() - start) / numRuns;
+console.log("### BLOCK END ###")
+start = performance.now();
 let batched;
 for (let i=0; i<numRuns; i++)
     batched = engine.query("../datasets/twitter_small_records_2x.json", ["$.user.lang"], true, true);
 let batchedTime = (performance.now() - start) / numRuns;
 console.log("### BATCHED END ###")
-start = performance.now();
-let block;
-for (let i=0; i<numRuns; i++)
-    block = engine.query("../datasets/twitter_small_records_2x.json", ["$.user.lang"], true, false);
-let blockTime = (performance.now() - start) / numRuns;
+
 
 let batchedCount = 0;
 for (let q = 0; q < batched.length; q++) {
