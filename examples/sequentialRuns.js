@@ -1,5 +1,5 @@
 let start;
-let numRuns = 10;
+let numRuns = 20;
 var engine = Polyglot.eval('gpjson', "GJ");
 engine.buildKernels();
 
