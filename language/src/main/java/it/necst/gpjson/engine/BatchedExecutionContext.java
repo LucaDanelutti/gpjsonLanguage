@@ -123,6 +123,8 @@ public class BatchedExecutionContext {
             for (int i=0; i < partitions.size(); i++) {
                 int[][] lines = executors[i].copyBuildResultArray(compiledQuery);
                 result.addPartition(lines, fileBuffer[i], executors[i].getCountNewlines());
+                executors[i].freeMemory();
+                fileMemory[i].invokeMember("free");
             }
             return result;
         } catch (IOException e) {

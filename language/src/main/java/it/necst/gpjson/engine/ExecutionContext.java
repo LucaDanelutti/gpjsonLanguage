@@ -41,6 +41,7 @@ public class ExecutionContext implements TruffleObject {
     private static final String LOADFILE = "loadFile";
     private static final String BUILDINDEXES = "buildIndexes";
     private static final String QUERY = "query";
+    private static final String FREE = "free";
 
     protected final Value cu;
     protected final Map<String,Value> kernels;
@@ -98,6 +99,15 @@ public class ExecutionContext implements TruffleObject {
         executor.buildIndexes(numLevels);
     }
 
+    private void free() {
+        if (executor != null)
+            executor.freeMemory();
+        if (isLoaded) {
+            fileMemory.invokeMember("free");
+            isLoaded = false;
+        }
+    }
+
     private JSONPathResult compileQuery(String query) throws JSONPathException {
         long start = System.nanoTime();
         JSONPathResult result;
@@ -152,6 +162,9 @@ public class ExecutionContext implements TruffleObject {
             if (compiledQuery != null) {
                 this.executor.query(compiledQuery);
                 result.addQuery(this.executor.copyBuildResultArray(compiledQuery), this.fileBuffer);
+                this.executor.freeMemory();
+                fileMemory.invokeMember("free");
+                isLoaded = false;
                 LOGGER.log(Level.FINE, query + " executed successfully");
             } else {
                 result.addFallbackQuery(this.fallbackQuery(query));
@@ -194,13 +207,13 @@ public class ExecutionContext implements TruffleObject {
     @ExportMessage
     @SuppressWarnings("static-method")
     public Object getMembers(@SuppressWarnings("unused") boolean includeInternal) {
-        return new String[] {LOADFILE, BUILDINDEXES, QUERY};
+        return new String[] {LOADFILE, BUILDINDEXES, QUERY, FREE};
     }
 
     @ExportMessage
     @CompilerDirectives.TruffleBoundary
     public boolean isMemberInvocable(String member) {
-        return LOADFILE.equals(member) | BUILDINDEXES.equals(member) | QUERY.equals(member);
+        return LOADFILE.equals(member) | BUILDINDEXES.equals(member) | QUERY.equals(member) | FREE.equals(member);
     }
 
     @ExportMessage
@@ -226,6 +239,12 @@ public class ExecutionContext implements TruffleObject {
                 }
                 String query = InvokeUtils.expectString(arguments[0], "argument 1 of " + QUERY + " must be a string");
                 return this.query(query);
+            case FREE:
+                if (arguments.length != 0) {
+                    throw new GpJSONException(FREE + " function requires 0 arguments");
+                }
+                this.free();
+                return this;
             default:
                 throw UnknownIdentifierException.create(member);
         }

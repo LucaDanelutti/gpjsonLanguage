@@ -2,7 +2,6 @@ package it.necst.gpjson.engine;
 
 import com.oracle.truffle.api.TruffleLogger;
 import it.necst.gpjson.GpJSONException;
-import it.necst.gpjson.GpJSONInternalException;
 import it.necst.gpjson.GpJSONLogger;
 import it.necst.gpjson.jsonpath.JSONPathResult;
 import org.graalvm.polyglot.Value;
@@ -48,7 +47,7 @@ public class Executor {
     }
 
     public void buildIndexes(long numLevels) {
-        if (!isIndexed || numLevels > this.numLevels) {
+        if (!isIndexed) {
             this.numLevels = numLevels;
             long start;
             start = System.nanoTime();
@@ -81,6 +80,10 @@ public class Executor {
         LOGGER.log(Level.FINEST, "sum() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         start = System.nanoTime();
         kernels.get("create_leveled_bitmaps").execute(gridSize, blockSize).execute(fileMemory, fileMemory.getArraySize(), stringIndexMemory, carryIndexMemoryWithOffset, leveledBitmapsIndexMemory, levelSize * numLevels, levelSize, numLevels);
+
+        carryIndexMemory.invokeMember("free");
+        carryIndexMemoryWithOffset.invokeMember("free");
+        sumBase.invokeMember("free");
         LOGGER.log(Level.FINEST, "create_leveled_bitmaps() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
     }
 
@@ -127,6 +130,13 @@ public class Executor {
         LOGGER.log(Level.FINEST, "xor() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         start = System.nanoTime();
         kernels.get("create_string_index").execute(gridSize, blockSize).execute(levelSize, stringIndexMemory, stringCarryIndexMemory);
+
+        stringCarryIndexMemory.invokeMember("free");
+        newlineCountIndexMemory.invokeMember("free");
+        newlineIndexOffset.invokeMember("free");
+        sumBase.invokeMember("free");
+        escapeIndexMemory.invokeMember("free");
+        xorBase.invokeMember("free");
         LOGGER.log(Level.FINEST, "create_string_index() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
     }
 
@@ -135,6 +145,8 @@ public class Executor {
         long start = System.nanoTime();
         if (!isIndexed)
             throw new GpJSONException("You must index the file before querying");
+        if (isQueried)
+            freeQueryMemory();
         long numberOfResults = compiledQuery.getNumResults();
         resultMemory = cu.invokeMember("DeviceArray", "long", numLines * 2 * numberOfResults);
         Value queryMemory = cu.invokeMember("DeviceArray", "char", compiledQuery.getIr().size());
@@ -150,6 +162,7 @@ public class Executor {
         localStart = System.nanoTime();
         kernels.get("find_value").execute(queryGridSize, queryBlockSize).execute(fileMemory, fileMemory.getArraySize(), newlineIndexMemory, newlineIndexMemory.getArraySize(), stringIndexMemory, leveledBitmapsIndexMemory, leveledBitmapsIndexMemory.getArraySize(), stringIndexMemory.getArraySize(), queryMemory, compiledQuery.getNumResults(), resultMemory);
         LOGGER.log(Level.FINEST, "find_value() done in " + (System.nanoTime() - localStart) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+        queryMemory.invokeMember("free");
         LOGGER.log(Level.FINER, "query() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         isQueried = true;
     }
@@ -175,6 +188,29 @@ public class Executor {
         LOGGER.log(Level.FINEST, "resultIndexes() done in " + (System.nanoTime() - localStart) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         LOGGER.log(Level.FINER, "copyBuildResultArray() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         return resultIndexes;
+    }
+
+    private void freeIndexMemory() {
+        if (isIndexed) {
+            newlineIndexMemory.invokeMember("free");
+            stringIndexMemory.invokeMember("free");
+            leveledBitmapsIndexMemory.invokeMember("free");
+            isIndexed = false;
+            numLevels = 0;
+            numLines = 0;
+        }
+    }
+
+    private void freeQueryMemory() {
+        if (isQueried) {
+            resultMemory.invokeMember("free");
+            isQueried = false;
+        }
+    }
+
+    public void freeMemory() {
+        freeIndexMemory();
+        freeQueryMemory();
     }
 
     public int getCountNewlines() {

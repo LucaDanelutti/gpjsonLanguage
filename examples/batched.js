@@ -1,5 +1,5 @@
 let start;
-let numRuns = 1;
+let numRuns = 10;
 let engine = Polyglot.eval('gpjson', "GJ");
 engine.buildKernels();
 
@@ -39,5 +39,5 @@ for (let q = 0; q < block.length; q++) {
     }
 }
 
-console.log("Batched query: " + batchedCount + " results in " + batchedTime + "ms");
-console.log("Block query: " + blockCount + " results in " + blockTime + "ms");
+console.log("Batched query: " + batchedCount + " results in avg " + batchedTime + "ms");
+console.log("Block query: " + blockCount + " results in avg " + blockTime + "ms");
