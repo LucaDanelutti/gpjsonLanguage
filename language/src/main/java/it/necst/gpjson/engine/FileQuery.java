@@ -27,6 +27,8 @@ public class FileQuery {
 
     private static final TruffleLogger LOGGER = GpJSONLogger.getLogger(GPJSON_LOGGER);
 
+    private Value queryMemory;
+
     public FileQuery(Value cu, Map<String, Value> kernels, FileMemory fileMemory, FileIndex fileIndex, JSONPathResult query) {
         this.cu = cu;
         this.kernels = kernels;
@@ -37,6 +39,8 @@ public class FileQuery {
     }
 
     public void free() {
+        queryMemory.invokeMember("free");
+
         resultMemory.invokeMember("free");
     }
 
@@ -66,7 +70,7 @@ public class FileQuery {
         long start = System.nanoTime();
         long numberOfResults = compiledQuery.getNumResults();
         resultMemory = cu.invokeMember("DeviceArray", "long", fileIndex.getNumLines() * 2 * numberOfResults);
-        Value queryMemory = cu.invokeMember("DeviceArray", "char", compiledQuery.getIr().size());
+        queryMemory = cu.invokeMember("DeviceArray", "char", compiledQuery.getIr().size());
         localStart = System.nanoTime();
         kernels.get("initialize").execute(gridSize, blockSize).execute(resultMemory, resultMemory.getArraySize(), -1);
         LOGGER.log(Level.FINEST, "initialize() done in " + (System.nanoTime() - localStart) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
@@ -79,7 +83,6 @@ public class FileQuery {
         localStart = System.nanoTime();
         kernels.get("find_value").execute(queryGridSize, queryBlockSize).execute(fileMemory.getFileMemory(), fileMemory.getFileSize(), fileIndex.getNewlineIndexMemory(), fileIndex.getNumLines(), fileIndex.getStringIndexMemory(), fileIndex.getLeveledBitmapsIndexMemory(), fileMemory.getLevelSize()*fileIndex.getNumLevels(), fileMemory.getLevelSize(), queryMemory, compiledQuery.getNumResults(), resultMemory);
         LOGGER.log(Level.FINEST, "find_value() done in " + (System.nanoTime() - localStart) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
-        queryMemory.invokeMember("free");
         LOGGER.log(Level.FINER, "query() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
     }
 }

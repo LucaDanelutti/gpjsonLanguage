@@ -45,7 +45,7 @@ public class Engine implements TruffleObject {
                 .newBuilder()
                 .allowAllAccess(true)
                 .allowExperimentalOptions(true)
-                .option("grcuda.ExecutionPolicy", "sync")
+                .option("grcuda.ExecutionPolicy", "async")
                 .option("grcuda.DeviceSelectionPolicy", "min-transfer-size")
                 .option("grcuda.NumberOfGPUs", "1")
                 // logging settings
@@ -150,9 +150,10 @@ public class Engine implements TruffleObject {
             if (channel.size() != fileSize) {
                 throw new GpJSONException("Size of file has changed while reading");
             }
+            long localStart = System.nanoTime();
             fileBuffer = channel.map(FileChannel.MapMode.READ_ONLY, 0, channel.size());
             fileBuffer.load();
-
+            LOGGER.log(Level.FINEST, "loadChannel() done in " + (System.nanoTime() - localStart) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         } catch (IOException e) {
             throw new GpJSONException("Failed to open file");
         }
