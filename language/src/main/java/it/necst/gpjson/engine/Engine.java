@@ -6,6 +6,7 @@ import com.oracle.truffle.api.interop.*;
 import com.oracle.truffle.api.library.ExportLibrary;
 import com.oracle.truffle.api.library.ExportMessage;
 import it.necst.gpjson.*;
+import it.necst.gpjson.jsonpath.*;
 import it.necst.gpjson.kernel.GpJSONKernel;
 import it.necst.gpjson.result.Result;
 import it.necst.gpjson.result.ResultGPJSONQuery;
@@ -14,7 +15,13 @@ import org.graalvm.polyglot.Value;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.ByteBuffer;
+import java.nio.MappedByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.channels.FileChannel;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
@@ -25,10 +32,11 @@ import static it.necst.gpjson.GpJSONLogger.GPJSON_LOGGER;
 public class Engine implements TruffleObject {
     private static final String BUILDKERNELS = "buildKernels";
     private static final String QUERY = "query";
-    private static final String CREATECONTEXT = "createContext";
 
     private final Value cu;
     Map<String,Value> kernels = new HashMap<>();
+
+    private final int partitionSize = (int) (1 * Math.pow(2, 30));
 
     private static final TruffleLogger LOGGER = GpJSONLogger.getLogger(GPJSON_LOGGER);
 
@@ -48,7 +56,7 @@ public class Engine implements TruffleObject {
         LOGGER.log(Level.FINE, "Engine created");
     }
 
-    public void buildKernels() {
+    private void buildKernels() {
         if (kernels.isEmpty()) {
             long start;
             start = System.nanoTime();
@@ -75,17 +83,13 @@ public class Engine implements TruffleObject {
     private Result query(String fileName, String[] queries, boolean combined, boolean batched) {
         if (kernels.isEmpty()) buildKernels();
         if (batched) {
-            ResultGPJSONQuery query = new BatchedExecutionContext(cu, kernels, fileName, (int) Math.pow(2, 30)).query(queries[0], combined);
+            ResultGPJSONQuery query = queryBatch(fileName, queries[0], combined);
             Result result = new Result();
             result.addQuery(query);
             return result;
-        } else
-            return new ExecutionContext(cu, kernels, fileName).query(queries, combined);
-    }
-
-    private ExecutionContext createContext(String fileName) {
-        if (kernels.isEmpty()) buildKernels();
-        return new ExecutionContext(cu, kernels, fileName);
+        } else {
+            return queryBlock(fileName, queries, combined);
+        }
     }
 
     @ExportMessage
@@ -97,13 +101,13 @@ public class Engine implements TruffleObject {
     @ExportMessage
     @SuppressWarnings("static-method")
     public Object getMembers(@SuppressWarnings("unused") boolean includeInternal) {
-        return new String[] {BUILDKERNELS, QUERY, CREATECONTEXT};
+        return new String[] {BUILDKERNELS, QUERY};
     }
 
     @ExportMessage
     @CompilerDirectives.TruffleBoundary
     public boolean isMemberInvocable(String member) {
-        return BUILDKERNELS.equals(member) | QUERY.equals(member) | CREATECONTEXT.equals(member);
+        return BUILDKERNELS.equals(member) | QUERY.equals(member);
     }
 
     @ExportMessage
@@ -124,14 +128,155 @@ public class Engine implements TruffleObject {
                 boolean combined = InvokeUtils.expectBoolean(arguments[2], "argument 3 of " + QUERY + " must be a boolean");
                 boolean batched = InvokeUtils.expectBoolean(arguments[3], "argument 4 of " + QUERY + " must be a boolean");
                 return this.query(file, queries, combined, batched);
-            case CREATECONTEXT:
-                if ((arguments.length != 1)) {
-                    throw new GpJSONException(CREATECONTEXT + " function requires 1 arguments");
-                }
-                file = InvokeUtils.expectString(arguments[0], "argument 1 of " + CREATECONTEXT + " must be a string");
-                return this.createContext(file);
             default:
                 throw UnknownIdentifierException.create(member);
         }
+    }
+
+    private FileMemory loadFileBlock(String fileName) {
+        long start;
+        start = System.nanoTime();
+        long fileSize;
+        Path filePath = Paths.get(fileName);
+        try {
+            fileSize = Files.size(filePath);
+            if (fileSize > Integer.MAX_VALUE)
+                throw new GpJSONException("Block mode cannot process files > 2GB");
+        } catch (IOException e) {
+            throw new GpJSONException("Failed to get file size");
+        }
+        MappedByteBuffer fileBuffer;
+        try (FileChannel channel = FileChannel.open(filePath)) {
+            if (channel.size() != fileSize) {
+                throw new GpJSONException("Size of file has changed while reading");
+            }
+            fileBuffer = channel.map(FileChannel.MapMode.READ_ONLY, 0, channel.size());
+            fileBuffer.load();
+
+        } catch (IOException e) {
+            throw new GpJSONException("Failed to open file");
+        }
+        FileMemory file = new FileMemory(cu, fileName, fileBuffer, fileSize);
+        LOGGER.log(Level.FINER, "loadFile() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+        return file;
+    }
+
+    private Result queryBlock(String fileName, String[] queries, boolean combined) {
+        FileMemory fileMemory = loadFileBlock(fileName);
+        JSONPathResult[] compiledQueries = new JSONPathResult[queries.length];
+        int maxDepth = 0;
+        for (int i=0; i< queries.length; i++) {
+            try {
+                compiledQueries[i] = new JSONPathParser(new JSONPathScanner(queries[i])).compile();
+                maxDepth = Math.max(maxDepth, compiledQueries[i].getMaxDepth());
+            } catch (UnsupportedJSONPathException e) {
+                LOGGER.log(Level.FINE, "Unsupported JSONPath query '" + queries[i] + "'. Falling back to cpu execution.");
+                compiledQueries[i] = null;
+            } catch (JSONPathException e) {
+                throw new GpJSONException("Error parsing query: " + queries[i]);
+            }
+        }
+        FileIndex fileIndex = new FileIndex(cu, kernels, fileMemory, combined, maxDepth);
+        Result result = new Result();
+        for (int i = 0; i < compiledQueries.length; i++) {
+            String query = queries[i];
+            if (compiledQueries[i] != null) {
+                FileQuery fileQuery = new FileQuery(cu, kernels, fileMemory, fileIndex, compiledQueries[i]);
+                result.addQuery(fileQuery.copyBuildResultArray(), fileMemory.getFileBuffer());
+                long start = System.nanoTime();
+                fileMemory.free();
+                fileIndex.free();
+                fileQuery.free();
+                LOGGER.log(Level.FINER, "free() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+                LOGGER.log(Level.FINE, query + " executed successfully");
+            } else {
+                result.addFallbackQuery(FileFallbackQuery.fallbackQuery(fileName, query));
+                LOGGER.log(Level.FINE, query + " executed successfully (cpu fallback)");
+            }
+        }
+        return result;
+    }
+
+    private ResultGPJSONQuery queryBatch(String fileName, String query, boolean combined) {
+        long start;
+        JSONPathResult compiledQuery;
+        try {
+            compiledQuery = new JSONPathParser(new JSONPathScanner(query)).compile();
+        } catch (UnsupportedJSONPathException e) {
+            LOGGER.log(Level.FINE, "Unsupported JSONPath query '" + query + "'. Falling back to cpu execution");
+            //TODO
+            throw new GpJSONException("Error parsing query: " + query);
+        } catch (JSONPathException e) {
+            throw new GpJSONException("Error parsing query: " + query);
+        }
+
+        Path file = Paths.get(fileName);
+        long fileSize;
+        try {
+            fileSize = Files.size(file);
+        } catch (IOException e) {
+            throw new GpJSONException("Failed to get file size");
+        }
+        try (FileChannel channel = FileChannel.open(file)) {
+            if (channel.size() != fileSize) {
+                throw new GpJSONException("Size of file has changed while reading");
+            }
+            List<Long> partitions = new ArrayList<>();
+            long lastPartition = 0;
+            partitions.add(lastPartition);
+            while (fileSize - lastPartition > partitionSize) {
+                partitions.add(nextPartition(channel, lastPartition));
+                lastPartition = partitions.get(partitions.size()-1);
+            }
+            MappedByteBuffer[] fileBuffer = new MappedByteBuffer[partitions.size()];
+            FileMemory[] fileMemory = new FileMemory[partitions.size()];
+            FileIndex[] fileIndex = new FileIndex[partitions.size()];
+            FileQuery[] fileQuery = new FileQuery[partitions.size()];
+            LOGGER.log(Level.FINE, "Generated " + partitions.size() + " partitions (partition size = " + partitionSize + ")");
+            LOGGER.log(Level.FINER, "partitions: " + partitions);
+
+            for (int i=0; i < partitions.size(); i++) {
+                start = System.nanoTime();
+                long startIndex = partitions.get(i);
+                long endIndex = (i == partitions.size()-1) ? fileSize : partitions.get(i+1) - 1; //skip the newline character
+                fileBuffer[i] = channel.map(FileChannel.MapMode.READ_ONLY, startIndex, endIndex-startIndex);
+                fileBuffer[i].load();
+                fileMemory[i] = new FileMemory(cu, fileName, fileBuffer[i], endIndex-startIndex);
+                fileIndex[i] = new FileIndex(cu, kernels, fileMemory[i], combined, compiledQuery.getMaxDepth());
+                fileQuery[i] = new FileQuery(cu, kernels, fileMemory[i], fileIndex[i], compiledQuery);
+                LOGGER.log(Level.FINER, "Partition " + i + " processed in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+            }
+
+            ResultGPJSONQuery result = new ResultGPJSONQuery();
+            for (int i=0; i < partitions.size(); i++) {
+                int[][] lines = fileQuery[i].copyBuildResultArray();
+                result.addPartition(lines, fileBuffer[i], fileIndex[i].getNumLines());
+                start = System.nanoTime();
+                fileMemory[i].free();
+                fileIndex[i].free();
+                fileQuery[i].free();
+                LOGGER.log(Level.FINER, "Partition " + i + " freed in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+                LOGGER.log(Level.FINE, "Partition " + i + " executed successfully");
+            }
+            return result;
+        } catch (IOException e) {
+            throw new GpJSONException("Failed to open file");
+        }
+    }
+
+    private long nextPartition(FileChannel channel, long prevPartition) {
+        int offset = 0;
+        while (offset < partitionSize) {
+            ByteBuffer dest = ByteBuffer.allocate(1);
+            try {
+                channel.read(dest, prevPartition + partitionSize + offset);
+            } catch (IOException e) {
+                throw new GpJSONException("Failed to read from file");
+            }
+            if (dest.get(0) == '\n')
+                return prevPartition + partitionSize + offset + 1; //we want the first character, not the newline
+            offset--;
+        }
+        throw new GpJSONException("Cannot partition file");
     }
 }
