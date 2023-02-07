@@ -47,16 +47,16 @@ public class Engine implements TruffleObject {
                 .newBuilder()
                 .allowAllAccess(true)
                 .allowExperimentalOptions(true)
-                .option("grcuda.ExecutionPolicy", "sync")
+                .option("grcuda.ExecutionPolicy", "async")
                 .option("grcuda.InputPrefetch", "true")
-                .option("grcuda.RetrieveNewStreamPolicy", "always-new")
-                .option("grcuda.RetrieveParentStreamPolicy", "multigpu-disjoint")
+                .option("grcuda.RetrieveNewStreamPolicy", "always-new") // always-new, reuse
+                .option("grcuda.RetrieveParentStreamPolicy", "multigpu-disjoint") // same-as-parent, disjoint, multigpu-early-disjoint, multigpu-disjoint
                 .option("grcuda.DependencyPolicy", "with-const")
                 .option("grcuda.DeviceSelectionPolicy", "min-transfer-size")
                 .option("grcuda.ForceStreamAttach", "false")
                 .option("grcuda.EnableComputationTimers", "false")
                 .option("grcuda.MemAdvisePolicy", "none") // none, read-mostly, preferred
-                .option("grcuda.NumberOfGPUs", "1")
+                .option("grcuda.NumberOfGPUs", "2")
                 // DAG
                 .option("grcuda.ExportDAG", "./dag")
                 // logging settings

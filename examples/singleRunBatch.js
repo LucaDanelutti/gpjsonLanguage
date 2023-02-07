@@ -3,7 +3,7 @@ var engine = Polyglot.eval('gpjson', "GJ");
 engine.buildKernels();
 
 start = performance.now();
-engine.query("../datasets/twitter_small_records.json", ["$.user.lang"], true, true);
+engine.query("../datasets/twitter_small_records_2x.json", ["$.user.lang"], true, true);
 console.log("Total time: " + (performance.now() - start) + "ms");
 
 function sleep(millis) {
