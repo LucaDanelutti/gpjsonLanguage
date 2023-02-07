@@ -21,3 +21,5 @@ for (let q = 0; q < result.length; q++) {
     }
 }
 console.log("Count: " + count);
+
+engine.close();

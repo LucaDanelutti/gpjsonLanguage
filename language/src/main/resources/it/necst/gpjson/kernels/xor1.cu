@@ -1,4 +1,4 @@
-__global__ void xor1(char *arr, int n) {
+__global__ void xor1(char *charArr, int n) {
     int index = blockIdx.x * blockDim.x + threadIdx.x;
     int stride = blockDim.x * gridDim.x;
     long elems_per_thread = (n+stride-1) / stride;
@@ -8,7 +8,7 @@ __global__ void xor1(char *arr, int n) {
 
     char prev = 0;
     for (long i = start; i < end && i < n; i++) {
-        prev ^= arr[i];
-        arr[i] = prev;
+        prev ^= charArr[i];
+        charArr[i] = prev;
     }
 }

@@ -32,7 +32,9 @@ import static it.necst.gpjson.GpJSONLogger.GPJSON_LOGGER;
 public class Engine implements TruffleObject {
     private static final String BUILDKERNELS = "buildKernels";
     private static final String QUERY = "query";
+    private static final String CLOSE = "close";
 
+    private final Context polyglot;
     private final Value cu;
     Map<String,Value> kernels = new HashMap<>();
 
@@ -41,13 +43,15 @@ public class Engine implements TruffleObject {
     private static final TruffleLogger LOGGER = GpJSONLogger.getLogger(GPJSON_LOGGER);
 
     public Engine() {
-        final Context polyglot = Context
+        polyglot = Context
                 .newBuilder()
                 .allowAllAccess(true)
                 .allowExperimentalOptions(true)
                 .option("grcuda.ExecutionPolicy", "async")
                 .option("grcuda.DeviceSelectionPolicy", "min-transfer-size")
                 .option("grcuda.NumberOfGPUs", "1")
+                // DAG
+                .option("grcuda.ExportDAG", "./dag")
                 // logging settings
                 .option("log.grcuda.com.nvidia.grcuda.level", "FINER")
                 .build();
@@ -101,13 +105,13 @@ public class Engine implements TruffleObject {
     @ExportMessage
     @SuppressWarnings("static-method")
     public Object getMembers(@SuppressWarnings("unused") boolean includeInternal) {
-        return new String[] {BUILDKERNELS, QUERY};
+        return new String[] {BUILDKERNELS, QUERY, CLOSE};
     }
 
     @ExportMessage
     @CompilerDirectives.TruffleBoundary
     public boolean isMemberInvocable(String member) {
-        return BUILDKERNELS.equals(member) | QUERY.equals(member);
+        return BUILDKERNELS.equals(member) | QUERY.equals(member) | CLOSE.equals(member);
     }
 
     @ExportMessage
@@ -128,6 +132,9 @@ public class Engine implements TruffleObject {
                 boolean combined = InvokeUtils.expectBoolean(arguments[2], "argument 3 of " + QUERY + " must be a boolean");
                 boolean batched = InvokeUtils.expectBoolean(arguments[3], "argument 4 of " + QUERY + " must be a boolean");
                 return this.query(file, queries, combined, batched);
+            case CLOSE:
+                polyglot.close();
+                return this;
             default:
                 throw UnknownIdentifierException.create(member);
         }

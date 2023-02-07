@@ -1,4 +1,4 @@
-__global__ void sum3(char *arr, int n, char *base, int offset, char *newArr) {
+__global__ void sum3(char *charArr, int n, char *base, int offset, char *charNewArr) {
     int index = blockIdx.x * blockDim.x + threadIdx.x;
     int stride = blockDim.x * gridDim.x;
     long elems_per_thread = (n+stride-1) / stride;
@@ -7,6 +7,6 @@ __global__ void sum3(char *arr, int n, char *base, int offset, char *newArr) {
     long end = start + elems_per_thread;
 
     for (long i = start; i < end && i < n; i++) {
-        newArr[i+offset] = arr[i] + base[index];
+        charNewArr[i+offset] = charArr[i] + base[index];
     }
 }

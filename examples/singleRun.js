@@ -9,6 +9,9 @@ console.log("Total time: " + (performance.now() - start) + "ms");
 function sleep(millis) {
     return new Promise(resolve => setTimeout(resolve, millis));
 }
+/*
 sleep(20*1000).then(() => {
     console.log("Exiting")
-});
+});*/
+
+engine.close();
