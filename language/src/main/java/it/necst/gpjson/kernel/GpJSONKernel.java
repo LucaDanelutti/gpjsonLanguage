@@ -1,10 +1,11 @@
 package it.necst.gpjson.kernel;
 
 public enum GpJSONKernel {
-    COUNT_NEWLINES("count_newlines", "count_newlines(file: inout pointer char, n: sint64, result: inout pointer sint32)", "it/necst/gpjson/kernels/uncombined/count_newlines.cu"),
-    CREATE_NEWLINE_INDEX("create_newline_index", "create_newline_index(file: inout pointer char, n: sint64, indices: inout pointer sint32, result: inout pointer sint64)", "it/necst/gpjson/kernels/uncombined/create_newline_index.cu"),
-    CREATE_ESCAPE_CARRY_INDEX("create_escape_carry_index", "create_escape_carry_index(file: inout pointer char, n: sint64, escape_carry_index: inout pointer char)", "it/necst/gpjson/kernels/uncombined/create_escape_carry_index.cu"),
-    CREATE_ESCAPE_INDEX("create_escape_index", "create_escape_index(file: inout pointer char, n: sint64, escape_carry_index: inout pointer char, escape_index: inout pointer sint64, escape_index_size: sint64)", "it/necst/gpjson/kernels/uncombined/create_escape_index.cu"),
+    // Uncombined
+    COUNT_NEWLINES("count_newlines", "count_newlines(file: in pointer char, n: sint64, result: out pointer sint32)", "it/necst/gpjson/kernels/uncombined/count_newlines.cu"),
+    CREATE_NEWLINE_INDEX("create_newline_index", "create_newline_index(file: in pointer char, n: sint64, indices: in pointer sint32, result: out pointer sint64)", "it/necst/gpjson/kernels/uncombined/create_newline_index.cu"),
+    CREATE_ESCAPE_CARRY_INDEX("create_escape_carry_index", "create_escape_carry_index(file: in pointer char, n: sint64, escape_carry_index: out pointer char)", "it/necst/gpjson/kernels/uncombined/create_escape_carry_index.cu"),
+    CREATE_ESCAPE_INDEX("create_escape_index", "create_escape_index(file: in pointer char, n: sint64, escape_carry_index: in pointer char, escape_index: out pointer sint64, escape_index_size: sint64)", "it/necst/gpjson/kernels/uncombined/create_escape_index.cu"),
     // Combined
     CREATE_QUOTE_INDEX("create_quote_index", "create_quote_index(file: in pointer char, n: sint64, escape_index: in pointer sint64, quote_index: out pointer sint64, quote_carry_index: out pointer char, quote_index_size: sint64)", "it/necst/gpjson/kernels/create_quote_index.cu"),
     CREATE_STRING_INDEX("create_string_index", "create_string_index(n: sint64, quote_index: out pointer sint64, quote_counts: in pointer char)", "it/necst/gpjson/kernels/create_string_index.cu"),
