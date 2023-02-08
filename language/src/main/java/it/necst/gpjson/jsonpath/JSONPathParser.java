@@ -76,15 +76,28 @@ public class JSONPathParser {
 
             switch (scanner.peek()) {
                 case ':':
-                    compileIndexRangeExpression(index);
-
-                    // The index range expression will parse the rest
+                    scanner.expectChar(':');
+                    int endIndex = readInteger(c -> c == ']');
+                    scanner.expectChar(']');
+                    compileIndexRangeExpression(index, endIndex);
                     return;
                 case ',':
                     throw scanner.unsupportedNext("Unsupported multiple index expression");
                 case ']':
                     createIndexIR(index);
                     break;
+            }
+        } else if (scanner.peek() == ':') {
+            scanner.expectChar(':');
+            if (scanner.peek() >= '0' && scanner.peek() <= '9') {
+                int index = readInteger(c -> c == ']');
+                scanner.expectChar(']');
+                compileIndexRangeExpression(0, index);
+                return;
+            } else if (scanner.peek() == '-') {
+                throw scanner.unsupportedNext("Unsupported last n elements of the array query");
+            } else {
+                throw scanner.errorNext("Unexpected character in index, expected an integer");
             }
         } else if (scanner.peek() == '*') {
             throw scanner.unsupportedNext("Unsupported wildcard expression");
@@ -101,12 +114,8 @@ public class JSONPathParser {
         }
     }
 
-    private void compileIndexRangeExpression(int startIndex) throws JSONPathException {
-        scanner.expectChar(':');
+    private void compileIndexRangeExpression(int startIndex, int endIndex) throws JSONPathException {
 
-        int endIndex = readInteger(c -> c == ']');
-
-        scanner.expectChar(']');
 
         int maxMaxLevel = maxLevel;
 
