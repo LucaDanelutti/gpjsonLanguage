@@ -76,9 +76,12 @@ public class FileQuery {
         LOGGER.log(Level.FINEST, "initialize() done in " + (System.nanoTime() - localStart) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         localStart = System.nanoTime();
         byte[] queryByteArray = compiledQuery.getIr().toByteArray();
+        StringBuilder stringBuilder = new StringBuilder();
         for (int j = 0; j < queryByteArray.length; j++) {
             queryMemory.setArrayElement(j, queryByteArray[j]);
+            stringBuilder.append(String.format("%x | ", Byte.toUnsignedInt(queryByteArray[j])));
         }
+        LOGGER.log(Level.FINER, "compiledQuery: " + stringBuilder);
         LOGGER.log(Level.FINEST, "copyCompiledQuery() done in " + (System.nanoTime() - localStart) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         localStart = System.nanoTime();
         kernels.get("find_value").execute(queryGridSize, queryBlockSize).execute(fileMemory.getFileMemory(), fileMemory.getFileSize(), fileIndex.getNewlineIndexMemory(), fileIndex.getNumLines(), fileIndex.getStringIndexMemory(), fileIndex.getLeveledBitmapsIndexMemory(), fileMemory.getLevelSize()*fileIndex.getNumLevels(), fileMemory.getLevelSize(), queryMemory, compiledQuery.getNumResults(), resultMemory);
