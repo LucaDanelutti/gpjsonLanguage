@@ -19,12 +19,9 @@ public class JSONPathParser {
 
     public JSONPathResult compile() throws JSONPathException {
         scanner.expectChar('$');
-
         compileNextExpression();
-
         ir.storeResult();
         ir.end();
-
         return new JSONPathResult(output, maxLevel, ir.getNumResultStores());
     }
 
@@ -44,18 +41,14 @@ public class JSONPathParser {
 
     private void compileDotExpression() throws JSONPathException {
         scanner.expectChar('.');
-
         if (scanner.peek() == '.') {
             throw scanner.unsupportedNext("Unsupported recursive descent");
         }
-
         String property = readProperty();
         if (property.isEmpty()) {
             throw scanner.error("Unexpected empty property");
         }
-
         createPropertyIR(property);
-
         if (scanner.hasNext()) {
             compileNextExpression();
         }
@@ -63,17 +56,14 @@ public class JSONPathParser {
 
     private void compileIndexExpression() throws JSONPathException {
         scanner.expectChar('[');
-
         if (scanner.peek() == '\'' || scanner.peek() == '"') {
             String property = readQuotedString();
             if (property.isEmpty()) {
                 throw scanner.error("Unexpected empty property");
             }
-
             createPropertyIR(property);
         } else if (scanner.peek() >= '0' && scanner.peek() <= '9') {
             int index = readInteger(c -> c == ']' || c == ':' || c == ',');
-
             switch (scanner.peek()) {
                 case ':':
                     scanner.expectChar(':');
@@ -106,52 +96,36 @@ public class JSONPathParser {
         } else {
             throw scanner.errorNext("Unexpected character in index, expected ', \", or an integer");
         }
-
         scanner.expectChar(']');
-
         if (scanner.hasNext()) {
             compileNextExpression();
         }
     }
 
     private void compileIndexRangeExpression(int startIndex, int endIndex) throws JSONPathException {
-
-
         int maxMaxLevel = maxLevel;
-
         for (int i = startIndex; i < endIndex; i++) {
             int startLevel = ir.getCurrentLevel();
-
             ir.index(i);
             ir.down();
-
             scanner.mark();
-
             int currentMaxLevel = maxLevel;
-
             if (scanner.hasNext()) {
                 compileNextExpression();
             }
-
             maxMaxLevel = Math.max(maxLevel, maxMaxLevel);
-
             maxLevel = currentMaxLevel;
-
             if (i == endIndex - 1) {
                 break;
             } else {
                 ir.storeResult();
             }
-
             scanner.reset();
-
             int endLevel = ir.getCurrentLevel();
-
             for (int j = 0; j < endLevel - startLevel; j++) {
                 ir.up();
             }
         }
-
         maxLevel = maxMaxLevel + 1;
     }
 
@@ -159,49 +133,39 @@ public class JSONPathParser {
         scanner.expectChar('?');
         scanner.expectChar('(');
         scanner.expectChar('@');
-
         while (scanner.skipIfChar(' ')) {
             // Skip whitespace
         }
-
         switch (scanner.peek()) {
             case '=':
                 scanner.expectChar('=');
                 scanner.expectChar('=');
-
                 while (scanner.skipIfChar(' ')) {
                     // Skip whitespace
                 }
-
                 String equalTo = readQuotedString();
-
                 ir.expressionStringEquals(equalTo);
-
                 break;
             default:
                 throw scanner.unsupportedNext("Unsupported character for expression");
         }
-
         scanner.expectChar(')');
     }
 
     private void createPropertyIR(String propertyName) {
         ir.property(propertyName);
         ir.down();
-
         maxLevel++;
     }
 
     private void createIndexIR(int index) {
         ir.index(index);
         ir.down();
-
         maxLevel++;
     }
 
     private String readProperty() throws JSONPathException {
         int startPosition = scanner.position();
-
         while (scanner.hasNext()) {
             char c = scanner.peek();
             if (c == ' ') {
@@ -209,12 +173,9 @@ public class JSONPathParser {
             } else if (c == '.' || c == '[') {
                 break;
             }
-
             scanner.next();
         }
-
         int endPosition = scanner.position();
-
         return scanner.substring(startPosition, endPosition);
     }
 
@@ -223,11 +184,8 @@ public class JSONPathParser {
         if (quoteCharacter != '\'' && quoteCharacter != '"') {
             throw scanner.error("Invalid quoted string");
         }
-
         int startPosition = scanner.position();
-
         boolean escaped = false;
-
         while (scanner.hasNext()) {
             char c = scanner.peek();
             if (escaped) {
@@ -237,20 +195,15 @@ public class JSONPathParser {
             } else if (c == quoteCharacter) {
                 break;
             }
-
             scanner.next();
         }
-
         int endPosition = scanner.position();
-
         scanner.expectChar(quoteCharacter);
-
         return scanner.substring(startPosition, endPosition);
     }
 
     private int readInteger(Predicate<Character> isEndCharacter) throws JSONPathException {
         int startPosition = scanner.position();
-
         while (scanner.hasNext()) {
             char c = scanner.peek();
             if (c >= '0' && c <= '9') {
@@ -259,12 +212,9 @@ public class JSONPathParser {
             } else if (isEndCharacter.test(c)) {
                 break;
             }
-
             throw scanner.error("Invalid integer");
         }
-
         int endPosition = scanner.position();
-
         String str = scanner.substring(startPosition, endPosition);
         return Integer.parseInt(str);
     }
