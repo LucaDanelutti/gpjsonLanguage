@@ -47,6 +47,13 @@ public class JSONPathScanner {
         }
     }
 
+    public void testDigit() throws JSONPathException {
+        char nextChar = peek();
+        if (nextChar < '0' || nextChar > '9') {
+            throw new JSONPathException("Expected digit, got character '" + nextChar + "' at " + position);
+        }
+    }
+
     public boolean skipIfChar(char c) throws JSONPathException {
         if (!hasNext()) {
             return false;

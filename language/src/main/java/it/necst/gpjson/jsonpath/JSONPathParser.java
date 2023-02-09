@@ -1,5 +1,7 @@
 package it.necst.gpjson.jsonpath;
 
+import java.util.List;
+import java.util.ArrayList;
 import java.util.function.Predicate;
 
 public class JSONPathParser {
@@ -72,7 +74,16 @@ public class JSONPathParser {
                     compileIndexRangeExpression(index, endIndex);
                     return;
                 case ',':
-                    throw scanner.unsupportedNext("Unsupported multiple index expression");
+                    List<Integer> indexes = new ArrayList<>();
+                    indexes.add(index);
+                    while (scanner.peek() == ',') {
+                        scanner.expectChar(',');
+                        scanner.testDigit();
+                        indexes.add(readInteger(c -> c == ',' || c == ']'));
+                    }
+                    scanner.expectChar(']');
+                    compileMultipleIndexExpression(indexes);
+                    return;
                 case ']':
                     createIndexIR(index);
                     break;
@@ -102,31 +113,45 @@ public class JSONPathParser {
         }
     }
 
+    private void compileMultipleIndexExpression(List<Integer> indexes) throws JSONPathException {
+        int maxMaxLevel = maxLevel;
+        for (int j = 0; j < indexes.size(); j++) {
+            Integer i = indexes.get(j);
+            maxMaxLevel = compileIndexAux(i, j == indexes.size()-1, maxMaxLevel);
+        }
+        maxLevel = maxMaxLevel + 1;
+    }
+
     private void compileIndexRangeExpression(int startIndex, int endIndex) throws JSONPathException {
         int maxMaxLevel = maxLevel;
         for (int i = startIndex; i < endIndex; i++) {
-            int startLevel = ir.getCurrentLevel();
-            ir.index(i);
-            ir.down();
-            scanner.mark();
-            int currentMaxLevel = maxLevel;
-            if (scanner.hasNext()) {
-                compileNextExpression();
-            }
-            maxMaxLevel = Math.max(maxLevel, maxMaxLevel);
-            maxLevel = currentMaxLevel;
-            if (i == endIndex - 1) {
-                break;
-            } else {
-                ir.storeResult();
-            }
-            scanner.reset();
-            int endLevel = ir.getCurrentLevel();
-            for (int j = 0; j < endLevel - startLevel; j++) {
-                ir.up();
-            }
+            maxMaxLevel = compileIndexAux(i, i == endIndex-1, maxMaxLevel);
         }
         maxLevel = maxMaxLevel + 1;
+    }
+
+    private int compileIndexAux(int index, boolean last, int maxMaxLevel) throws JSONPathException {
+        int startLevel = ir.getCurrentLevel();
+        ir.index(index);
+        ir.down();
+        scanner.mark();
+        int currentMaxLevel = maxLevel;
+        if (scanner.hasNext()) {
+            compileNextExpression();
+        }
+        maxMaxLevel = Math.max(maxLevel, maxMaxLevel);
+        maxLevel = currentMaxLevel;
+        if (last) {
+            return maxMaxLevel;
+        } else {
+            ir.storeResult();
+        }
+        scanner.reset();
+        int endLevel = ir.getCurrentLevel();
+        for (int j = 0; j < endLevel - startLevel; j++) {
+            ir.up();
+        }
+        return maxMaxLevel;
     }
 
     private void compileFilterExpression() throws JSONPathException {
