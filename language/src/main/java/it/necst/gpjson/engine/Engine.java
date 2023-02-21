@@ -259,6 +259,10 @@ public class Engine implements TruffleObject {
                 fileMemory[i] = new FileMemory(cu, fileName, fileBuffer[i], endIndex-startIndex);
                 fileIndex[i] = new FileIndex(cu, kernels, fileMemory[i], combined, compiledQuery.getMaxDepth());
                 fileQuery[i] = new FileQuery(cu, kernels, fileMemory[i], fileIndex[i], compiledQuery);
+                start = System.nanoTime();
+                fileMemory[i].free();
+                fileIndex[i].free();
+                LOGGER.log(Level.FINER, "Memory and index of partition " + i + " freed in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
                 LOGGER.log(Level.FINER, "Partition " + i + " processed in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
             }
 
@@ -267,8 +271,6 @@ public class Engine implements TruffleObject {
                 int[][] lines = fileQuery[i].copyBuildResultArray();
                 result.addPartition(lines, fileBuffer[i], fileIndex[i].getNumLines());
                 start = System.nanoTime();
-                fileMemory[i].free();
-                fileIndex[i].free();
                 fileQuery[i].free();
                 LOGGER.log(Level.FINER, "Partition " + i + " freed in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
                 LOGGER.log(Level.FINE, "Partition " + i + " executed successfully");
