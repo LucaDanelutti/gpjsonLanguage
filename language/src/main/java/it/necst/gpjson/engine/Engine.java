@@ -60,7 +60,7 @@ public class Engine implements TruffleObject {
                 // DAG
                 // .option("grcuda.ExportDAG", "./dag")
                 // logging settings
-                .option("log.grcuda.com.nvidia.grcuda.level", "FINER")
+                .option("log.grcuda.com.nvidia.grcuda.level", "OFF")
                 .build();
         LOGGER.log(Level.FINE, "grcuda context created");
         cu = polyglot.eval("grcuda", "CU");
