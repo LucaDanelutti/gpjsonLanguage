@@ -250,30 +250,33 @@ public class Engine implements TruffleObject {
             LOGGER.log(Level.FINE, "Generated " + partitions.size() + " partitions (partition size = " + partitionSize + ")");
             LOGGER.log(Level.FINER, "partitions: " + partitions);
 
-            for (int i=0; i < partitions.size(); i++) {
-                start = System.nanoTime();
-                long startIndex = partitions.get(i);
-                long endIndex = (i == partitions.size()-1) ? fileSize : partitions.get(i+1) - 1; //skip the newline character
-                fileBuffer[i] = channel.map(FileChannel.MapMode.READ_ONLY, startIndex, endIndex-startIndex);
-                fileBuffer[i].load();
-                fileMemory[i] = new FileMemory(cu, fileName, fileBuffer[i], endIndex-startIndex);
-                fileIndex[i] = new FileIndex(cu, kernels, fileMemory[i], combined, compiledQuery.getMaxDepth());
-                fileQuery[i] = new FileQuery(cu, kernels, fileMemory[i], fileIndex[i], compiledQuery);
-                start = System.nanoTime();
-                fileMemory[i].free();
-                fileIndex[i].free();
-                LOGGER.log(Level.FINER, "Memory and index of partition " + i + " freed in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
-                LOGGER.log(Level.FINER, "Partition " + i + " processed in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
-            }
-
             ResultGPJSONQuery result = new ResultGPJSONQuery();
-            for (int i=0; i < partitions.size(); i++) {
-                int[][] lines = fileQuery[i].copyBuildResultArray();
-                result.addPartition(lines, fileBuffer[i], fileIndex[i].getNumLines());
-                start = System.nanoTime();
-                fileQuery[i].free();
-                LOGGER.log(Level.FINER, "Partition " + i + " freed in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
-                LOGGER.log(Level.FINE, "Partition " + i + " executed successfully");
+            int stride = 10;
+            for (int j=0; j <= partitions.size() / stride; j++) {
+                for (int i=j*stride; i < (j+1)*stride && i < partitions.size(); i++) {
+                    start = System.nanoTime();
+                    long startIndex = partitions.get(i);
+                    long endIndex = (i == partitions.size()-1) ? fileSize : partitions.get(i+1) - 1; //skip the newline character
+                    fileBuffer[i] = channel.map(FileChannel.MapMode.READ_ONLY, startIndex, endIndex-startIndex);
+                    fileBuffer[i].load();
+                    fileMemory[i] = new FileMemory(cu, fileName, fileBuffer[i], endIndex-startIndex);
+                    fileIndex[i] = new FileIndex(cu, kernels, fileMemory[i], combined, compiledQuery.getMaxDepth());
+                    fileQuery[i] = new FileQuery(cu, kernels, fileMemory[i], fileIndex[i], compiledQuery);
+                    long localStart = System.nanoTime();
+                    fileMemory[i].free();
+                    fileIndex[i].free();
+                    LOGGER.log(Level.FINER, "Memory and index of partition " + i + " freed in " + (System.nanoTime() - localStart) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+                    LOGGER.log(Level.FINER, "Partition " + i + " processed in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+                }
+
+                for (int i=j*stride; i < (j+1)*stride && i < partitions.size(); i++) {
+                    int[][] lines = fileQuery[i].copyBuildResultArray();
+                    result.addPartition(lines, fileBuffer[i], fileIndex[i].getNumLines());
+                    start = System.nanoTime();
+                    fileQuery[i].free();
+                    LOGGER.log(Level.FINER, "Partition " + i + " freed in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+                    LOGGER.log(Level.FINE, "Partition " + i + " executed successfully");
+                }
             }
             return result;
         } catch (IOException e) {
