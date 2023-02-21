@@ -198,17 +198,17 @@ public class Engine implements TruffleObject {
             if (compiledQueries[i] != null) {
                 FileQuery fileQuery = new FileQuery(cu, kernels, fileMemory, fileIndex, compiledQueries[i]);
                 result.addQuery(fileQuery.copyBuildResultArray(), fileMemory.getFileBuffer());
-                long start = System.nanoTime();
-                fileMemory.free();
-                fileIndex.free();
                 fileQuery.free();
-                LOGGER.log(Level.FINER, "free() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
                 LOGGER.log(Level.FINE, query + " executed successfully");
             } else {
                 result.addFallbackQuery(FileFallbackQuery.fallbackQuery(fileName, query));
                 LOGGER.log(Level.FINE, query + " executed successfully (cpu fallback)");
             }
         }
+        long start = System.nanoTime();
+        fileMemory.free();
+        fileIndex.free();
+        LOGGER.log(Level.FINER, "free() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         return result;
     }
 
