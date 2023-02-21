@@ -56,9 +56,9 @@ public class Engine implements TruffleObject {
                 .option("grcuda.ForceStreamAttach", "false")
                 .option("grcuda.EnableComputationTimers", "false")
                 .option("grcuda.MemAdvisePolicy", "none") // none, read-mostly, preferred
-                .option("grcuda.NumberOfGPUs", "2")
+                .option("grcuda.NumberOfGPUs", "1")
                 // DAG
-                .option("grcuda.ExportDAG", "./dag")
+                // .option("grcuda.ExportDAG", "./dag")
                 // logging settings
                 .option("log.grcuda.com.nvidia.grcuda.level", "FINER")
                 .build();
