@@ -197,6 +197,7 @@ public class Engine implements TruffleObject {
             String query = queries[i];
             if (compiledQueries[i] != null) {
                 FileQuery fileQuery = new FileQuery(cu, kernels, fileMemory, fileIndex, compiledQueries[i]);
+                cu.invokeMember("cudaStreamSynchronize", fileMemory.getStream());
                 result.addQuery(fileQuery.copyBuildResultArray(), fileMemory.getFileBuffer());
                 long start = System.nanoTime();
                 fileMemory.free();
@@ -257,13 +258,19 @@ public class Engine implements TruffleObject {
                 fileBuffer[i] = channel.map(FileChannel.MapMode.READ_ONLY, startIndex, endIndex-startIndex);
                 fileBuffer[i].load();
                 fileMemory[i] = new FileMemory(cu, fileName, fileBuffer[i], endIndex-startIndex);
+                LOGGER.log(Level.FINER, "Partition " + i + " loaded in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+            }
+
+            for (int i=0; i < partitions.size(); i++) {
+                start = System.nanoTime();
                 fileIndex[i] = new FileIndex(cu, kernels, fileMemory[i], combined, compiledQuery.getMaxDepth());
                 fileQuery[i] = new FileQuery(cu, kernels, fileMemory[i], fileIndex[i], compiledQuery);
-                LOGGER.log(Level.FINER, "Partition " + i + " processed in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+                LOGGER.log(Level.FINER, "Partition " + i + " indexed in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
             }
 
             ResultGPJSONQuery result = new ResultGPJSONQuery();
             for (int i=0; i < partitions.size(); i++) {
+                cu.invokeMember("cudaStreamSynchronize", fileMemory[i].getStream());
                 int[][] lines = fileQuery[i].copyBuildResultArray();
                 result.addPartition(lines, fileBuffer[i], fileIndex[i].getNumLines());
                 start = System.nanoTime();

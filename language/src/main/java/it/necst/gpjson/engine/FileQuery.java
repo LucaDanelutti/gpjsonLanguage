@@ -50,6 +50,7 @@ public class FileQuery {
         long numberOfResults = compiledQuery.getNumResults();
         localStart = System.nanoTime();
         UnsafeHelper.LongArray longArray = UnsafeHelper.createLongArray(resultMemory.getArraySize());
+
         resultMemory.invokeMember("copyTo", longArray.getAddress());
         LOGGER.log(Level.FINEST, "copyTo() done in " + (System.nanoTime() - localStart) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         localStart = System.nanoTime();
@@ -72,7 +73,7 @@ public class FileQuery {
         resultMemory = cu.invokeMember("DeviceArray", "long", fileIndex.getNumLines() * 2 * numberOfResults);
         queryMemory = cu.invokeMember("DeviceArray", "char", compiledQuery.getIr().size());
         localStart = System.nanoTime();
-        kernels.get("initialize").execute(gridSize, blockSize).execute(resultMemory, resultMemory.getArraySize(), -1);
+        kernels.get("initialize").execute(gridSize, blockSize, fileMemory.getStream()).execute(resultMemory, resultMemory.getArraySize(), -1);
         LOGGER.log(Level.FINEST, "initialize() done in " + (System.nanoTime() - localStart) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         localStart = System.nanoTime();
         byte[] queryByteArray = compiledQuery.getIr().toByteArray();
@@ -84,7 +85,7 @@ public class FileQuery {
         LOGGER.log(Level.FINER, "compiledQuery: " + stringBuilder);
         LOGGER.log(Level.FINEST, "copyCompiledQuery() done in " + (System.nanoTime() - localStart) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         localStart = System.nanoTime();
-        kernels.get("find_value").execute(queryGridSize, queryBlockSize).execute(fileMemory.getFileMemory(), fileMemory.getFileSize(), fileIndex.getNewlineIndexMemory(), fileIndex.getNumLines(), fileIndex.getStringIndexMemory(), fileIndex.getLeveledBitmapsIndexMemory(), fileMemory.getLevelSize()*fileIndex.getNumLevels(), fileMemory.getLevelSize(), queryMemory, compiledQuery.getNumResults(), resultMemory);
+        kernels.get("find_value").execute(queryGridSize, queryBlockSize, fileMemory.getStream()).execute(fileMemory.getFileMemory(), fileMemory.getFileSize(), fileIndex.getNewlineIndexMemory(), fileIndex.getNumLines(), fileIndex.getStringIndexMemory(), fileIndex.getLeveledBitmapsIndexMemory(), fileMemory.getLevelSize()*fileIndex.getNumLevels(), fileMemory.getLevelSize(), queryMemory, compiledQuery.getNumResults(), resultMemory);
         LOGGER.log(Level.FINEST, "find_value() done in " + (System.nanoTime() - localStart) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         LOGGER.log(Level.FINER, "query() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
     }

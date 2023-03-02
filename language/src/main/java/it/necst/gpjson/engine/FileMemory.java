@@ -17,6 +17,8 @@ public class FileMemory {
     private final MappedByteBuffer fileBuffer;
     private final long fileSize;
     private final long levelSize;
+    private Value stream;
+    UnsafeHelper.ByteArray pinnedFileBuffer;
 
     private static final TruffleLogger LOGGER = GpJSONLogger.getLogger(GPJSON_LOGGER);
 
@@ -31,6 +33,10 @@ public class FileMemory {
 
     public void free() {
         fileMemory.invokeMember("free");
+        cu.invokeMember("cudaStreamDestroy", stream);
+        long localStart = System.nanoTime();
+        cu.invokeMember("cudaHostUnregister", pinnedFileBuffer.getAddress());
+        LOGGER.log(Level.FINEST, "cudaHostUnregister() done in " + (System.nanoTime() - localStart) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
     }
 
     public Value getFileMemory() {
@@ -53,15 +59,31 @@ public class FileMemory {
         return fileName;
     }
 
+    public Value getStream() {
+        return stream;
+    }
+
     private void load() {
         long localStart = System.nanoTime();
+        System.out.println("HERE: " + fileSize);
         fileMemory = cu.invokeMember("DeviceArray", "char", fileSize);
+        System.out.println("HERE2");
         LOGGER.log(Level.FINEST, "createDeviceArray() done in " + (System.nanoTime() - localStart) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         localStart = System.nanoTime();
-        UnsafeHelper.ByteArray byteArray = UnsafeHelper.createByteArray(fileBuffer);
+        pinnedFileBuffer = UnsafeHelper.createByteArray(fileBuffer);
         LOGGER.log(Level.FINEST, "createByteArray() done in " + (System.nanoTime() - localStart) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+//        localStart = System.nanoTime();
+//        fileMemory.invokeMember("copyFrom", byteArray.getAddress());
+//        LOGGER.log(Level.FINEST, "copyFrom() done in " + (System.nanoTime() - localStart) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+        cu.invokeMember("cudaSetDevice", 0);
+        stream = cu.invokeMember("cudaStreamCreate");
         localStart = System.nanoTime();
-        fileMemory.invokeMember("copyFrom", byteArray.getAddress());
-        LOGGER.log(Level.FINEST, "copyFrom() done in " + (System.nanoTime() - localStart) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+        cu.invokeMember("cudaHostRegister", pinnedFileBuffer.getAddress(), fileSize);
+        LOGGER.log(Level.FINEST,"hostRegister: " + (System.nanoTime() - localStart) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+        cu.invokeMember("cudaStreamAttachMemAsync", stream, fileMemory);
+        localStart = System.nanoTime();
+        cu.invokeMember("cudaMemcpyAsync", fileMemory.getMember("pointer"), pinnedFileBuffer.getAddress(), fileSize, stream.asNativePointer());
+        LOGGER.log(Level.FINEST,"memcpyAsync: " + (System.nanoTime() - localStart) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+        cu.invokeMember("cudaMemPrefetchAsync", fileMemory, fileSize, 0, stream);
     }
 }
