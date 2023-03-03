@@ -20,10 +20,10 @@ console.log("Avg: " + (performance.now() - startTotal) / numRuns + "ms");
 
 for (let k=0; k<numRuns; k++) {
     count[k] = 0;
-    for (let q = 0; q < result.length; q++) {
-        for (let i = 0; i < result[q].length; i++) {
-            for (let j = 0; j < result[q][i].length; j++) {
-                if (result[q][i][j] != null)
+    for (let q = 0; q < result[k].length; q++) {
+        for (let i = 0; i < result[k][q].length; i++) {
+            for (let j = 0; j < result[k][q][i].length; j++) {
+                if (result[k][q][i][j] != null)
                     count[k] += 1;
             }
         }
