@@ -1,6 +1,7 @@
-package it.necst.gpjson.engine;
+package it.necst.gpjson.engine.core;
 
 import com.oracle.truffle.api.TruffleLogger;
+import it.necst.gpjson.engine.UnsafeHelper;
 import org.graalvm.polyglot.Value;
 import java.nio.MappedByteBuffer;
 import it.necst.gpjson.GpJSONLogger;
@@ -10,7 +11,7 @@ import java.util.logging.Level;
 
 import static it.necst.gpjson.GpJSONLogger.GPJSON_LOGGER;
 
-public class FileMemory {
+public class Data {
     private final Value cu;
     private final String fileName;
     private Value fileMemory;
@@ -20,7 +21,7 @@ public class FileMemory {
 
     private static final TruffleLogger LOGGER = GpJSONLogger.getLogger(GPJSON_LOGGER);
 
-    public FileMemory(Value cu, String fileName, MappedByteBuffer fileBuffer, long fileSize) {
+    public Data(Value cu, String fileName, MappedByteBuffer fileBuffer, long fileSize) {
         this.cu = cu;
         this.fileName = fileName;
         this.fileBuffer = fileBuffer;

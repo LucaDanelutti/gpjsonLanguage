@@ -5,7 +5,7 @@ import java.util.Scanner;
 import java.util.stream.Collectors;
 
 public class PrintedIRParser {
-    public static JSONPathResult parse(Scanner scanner) {
+    public static JSONPathQuery parse(Scanner scanner) {
         IRBuilder ir = new IRBuilder();
 
         int maxDepth = 0;
@@ -52,6 +52,6 @@ public class PrintedIRParser {
             }
         }
 
-        return new JSONPathResult(ir.getBuffer(), maxDepth, ir.getNumResultStores());
+        return new JSONPathQuery(ir.getBuffer(), maxDepth, ir.getNumResultStores());
     }
 }

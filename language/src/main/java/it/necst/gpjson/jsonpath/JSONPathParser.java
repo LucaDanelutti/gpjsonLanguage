@@ -19,12 +19,12 @@ public class JSONPathParser {
         this(new JSONPathScanner(string));
     }
 
-    public JSONPathResult compile() throws JSONPathException {
+    public JSONPathQuery compile() throws JSONPathException {
         scanner.expectChar('$');
         compileNextExpression();
         ir.storeResult();
         ir.end();
-        return new JSONPathResult(output, maxLevel, ir.getNumResultStores());
+        return new JSONPathQuery(output, maxLevel, ir.getNumResultStores());
     }
 
     private void compileNextExpression() throws JSONPathException {

@@ -6,6 +6,9 @@ import com.oracle.truffle.api.interop.*;
 import com.oracle.truffle.api.library.ExportLibrary;
 import com.oracle.truffle.api.library.ExportMessage;
 import it.necst.gpjson.*;
+import it.necst.gpjson.engine.core.Index;
+import it.necst.gpjson.engine.core.Data;
+import it.necst.gpjson.engine.core.Query;
 import it.necst.gpjson.jsonpath.*;
 import it.necst.gpjson.kernel.GpJSONKernel;
 import it.necst.gpjson.result.Result;
@@ -32,7 +35,12 @@ import static it.necst.gpjson.GpJSONLogger.GPJSON_LOGGER;
 public class Engine implements TruffleObject {
     private static final String BUILDKERNELS = "buildKernels";
     private static final String QUERY = "query";
+    private static final String LOAD = "load";
+    private static final String INDEX = "index";
+    private static final String QUERY2 = "query2";
     private static final String CLOSE = "close";
+
+    private static final Set<String> MEMBERS = new HashSet<>(Arrays.asList(BUILDKERNELS, QUERY, LOAD, INDEX, QUERY2, CLOSE));
 
     private final Context polyglot;
     private final Value cu;
@@ -56,11 +64,12 @@ public class Engine implements TruffleObject {
                 .option("grcuda.ForceStreamAttach", "false")
                 .option("grcuda.EnableComputationTimers", "false")
                 .option("grcuda.MemAdvisePolicy", "none") // none, read-mostly, preferred
-                .option("grcuda.NumberOfGPUs", "1")
+                .option("grcuda.NumberOfGPUs", "2")
                 // DAG
-                // .option("grcuda.ExportDAG", "./dag")
+                .option("grcuda.ExportDAG", "./dag")
                 // logging settings
-                .option("log.grcuda.com.nvidia.grcuda.level", "OFF")
+                .option("log.grcuda.com.nvidia.grcuda.level", "FINER")
+                .option("log.grcuda.com.nvidia.grcuda.runtime.executioncontext.level", "FINEST")
                 .build();
         LOGGER.log(Level.FINE, "grcuda context created");
         cu = polyglot.eval("grcuda", "CU");
@@ -112,13 +121,13 @@ public class Engine implements TruffleObject {
     @ExportMessage
     @SuppressWarnings("static-method")
     public Object getMembers(@SuppressWarnings("unused") boolean includeInternal) {
-        return new String[] {BUILDKERNELS, QUERY, CLOSE};
+        return MEMBERS.toArray(new String[0]);
     }
 
     @ExportMessage
     @CompilerDirectives.TruffleBoundary
     public boolean isMemberInvocable(String member) {
-        return BUILDKERNELS.equals(member) | QUERY.equals(member) | CLOSE.equals(member);
+        return MEMBERS.contains(member);
     }
 
     @ExportMessage
@@ -130,7 +139,7 @@ public class Engine implements TruffleObject {
                 }
                 this.buildKernels();
                 return this;
-            case QUERY:
+            case QUERY: {
                 if ((arguments.length != 4)) {
                     throw new GpJSONException(QUERY + " function requires 4 arguments");
                 }
@@ -147,7 +156,7 @@ public class Engine implements TruffleObject {
         }
     }
 
-    private FileMemory loadFileBlock(String fileName) {
+    private Data loadFileBlock(String fileName) {
         long start;
         start = System.nanoTime();
         long fileSize;
@@ -171,14 +180,14 @@ public class Engine implements TruffleObject {
         } catch (IOException e) {
             throw new GpJSONException("Failed to open file");
         }
-        FileMemory file = new FileMemory(cu, fileName, fileBuffer, fileSize);
+        Data file = new Data(cu, fileName, fileBuffer, fileSize);
         LOGGER.log(Level.FINER, "loadFile() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         return file;
     }
 
     private Result queryBlock(String fileName, String[] queries, boolean combined) {
-        FileMemory fileMemory = loadFileBlock(fileName);
-        JSONPathResult[] compiledQueries = new JSONPathResult[queries.length];
+        Data data = loadFileBlock(fileName);
+        JSONPathQuery[] compiledQueries = new JSONPathQuery[queries.length];
         int maxDepth = 0;
         for (int i=0; i< queries.length; i++) {
             try {
@@ -191,13 +200,13 @@ public class Engine implements TruffleObject {
                 throw new GpJSONException("Error parsing query: " + queries[i]);
             }
         }
-        FileIndex fileIndex = new FileIndex(cu, kernels, fileMemory, combined, maxDepth);
+        Index index = new Index(cu, kernels, data, combined, maxDepth);
         Result result = new Result();
         for (int i = 0; i < compiledQueries.length; i++) {
             String query = queries[i];
             if (compiledQueries[i] != null) {
-                FileQuery fileQuery = new FileQuery(cu, kernels, fileMemory, fileIndex, compiledQueries[i]);
-                result.addQuery(fileQuery.copyBuildResultArray(), fileMemory.getFileBuffer());
+                Query fileQuery = new Query(cu, kernels, data, index, compiledQueries[i]);
+                result.addQuery(fileQuery.copyBuildResultArray(), data.getFileBuffer());
                 fileQuery.free();
                 LOGGER.log(Level.FINE, query + " executed successfully");
             } else {
@@ -206,15 +215,15 @@ public class Engine implements TruffleObject {
             }
         }
         long start = System.nanoTime();
-        fileMemory.free();
-        fileIndex.free();
+        data.free();
+        index.free();
         LOGGER.log(Level.FINER, "free() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         return result;
     }
 
     private ResultGPJSONQuery queryBatch(String fileName, String query, boolean combined) {
         long start;
-        JSONPathResult compiledQuery;
+        JSONPathQuery compiledQuery;
         try {
             compiledQuery = new JSONPathParser(new JSONPathScanner(query)).compile();
         } catch (UnsupportedJSONPathException e) {
@@ -244,9 +253,9 @@ public class Engine implements TruffleObject {
                 lastPartition = partitions.get(partitions.size()-1);
             }
             MappedByteBuffer[] fileBuffer = new MappedByteBuffer[partitions.size()];
-            FileMemory[] fileMemory = new FileMemory[partitions.size()];
-            FileIndex[] fileIndex = new FileIndex[partitions.size()];
-            FileQuery[] fileQuery = new FileQuery[partitions.size()];
+            Data[] data = new Data[partitions.size()];
+            Index[] indices = new Index[partitions.size()];
+            Query[] fileQuery = new Query[partitions.size()];
             LOGGER.log(Level.FINE, "Generated " + partitions.size() + " partitions (partition size = " + partitionSize + ")");
             LOGGER.log(Level.FINER, "partitions: " + partitions);
 
@@ -259,19 +268,19 @@ public class Engine implements TruffleObject {
                     long endIndex = (i == partitions.size()-1) ? fileSize : partitions.get(i+1) - 1; //skip the newline character
                     fileBuffer[i] = channel.map(FileChannel.MapMode.READ_ONLY, startIndex, endIndex-startIndex);
                     fileBuffer[i].load();
-                    fileMemory[i] = new FileMemory(cu, fileName, fileBuffer[i], endIndex-startIndex);
-                    fileIndex[i] = new FileIndex(cu, kernels, fileMemory[i], combined, compiledQuery.getMaxDepth());
-                    fileQuery[i] = new FileQuery(cu, kernels, fileMemory[i], fileIndex[i], compiledQuery);
+                    data[i] = new Data(cu, fileName, fileBuffer[i], endIndex-startIndex);
+                    indices[i] = new Index(cu, kernels, data[i], combined, compiledQuery.getMaxDepth());
+                    fileQuery[i] = new Query(cu, kernels, data[i], indices[i], compiledQuery);
                     long localStart = System.nanoTime();
-                    fileMemory[i].free();
-                    fileIndex[i].free();
+                    data[i].free();
+                    indices[i].free();
                     LOGGER.log(Level.FINER, "Memory and index of partition " + i + " freed in " + (System.nanoTime() - localStart) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
                     LOGGER.log(Level.FINER, "Partition " + i + " processed in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
                 }
 
                 for (int i=j*stride; i < (j+1)*stride && i < partitions.size(); i++) {
                     int[][] lines = fileQuery[i].copyBuildResultArray();
-                    result.addPartition(lines, fileBuffer[i], fileIndex[i].getNumLines());
+                    result.addPartition(lines, fileBuffer[i], indices[i].getNumLines());
                     start = System.nanoTime();
                     fileQuery[i].free();
                     LOGGER.log(Level.FINER, "Partition " + i + " freed in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");

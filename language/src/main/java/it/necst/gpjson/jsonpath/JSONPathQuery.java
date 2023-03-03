@@ -1,11 +1,11 @@
 package it.necst.gpjson.jsonpath;
 
-public class JSONPathResult {
+public class JSONPathQuery {
     private final IRByteOutputBuffer ir;
     private final int maxDepth;
     private final int numResults;
 
-    public JSONPathResult(IRByteOutputBuffer ir, int maxDepth, int numResults) {
+    public JSONPathQuery(IRByteOutputBuffer ir, int maxDepth, int numResults) {
         this.ir = ir;
         this.maxDepth = maxDepth;
         this.numResults = numResults;
