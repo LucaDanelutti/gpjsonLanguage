@@ -38,6 +38,7 @@ public class Index implements TruffleObject {
     private final DataBuilder[] dataBuilder;
     private final IndexBuilder[] indexBuilder;
     private final int numPartitions;
+    private boolean isFreed = false;
 
     private static final TruffleLogger LOGGER = GpJSONLogger.getLogger(GPJSON_LOGGER);
 
@@ -52,9 +53,12 @@ public class Index implements TruffleObject {
     public void free() {
         for (int i=0; i < numPartitions; i++)
             indexBuilder[i].free();
+        isFreed = true;
     }
 
     public Result query(String[] queries, JSONPathQuery[] compiledQueries) {
+        if (isFreed())
+            throw new GpJSONException("You can't operate on a freed index");
         Result result = new Result();
         for (int i=0; i < queries.length; i++) {
             result.addQuery(getResult(queries[i], compiledQueries[i]));
@@ -63,6 +67,8 @@ public class Index implements TruffleObject {
     }
 
     private Result query(String query) {
+        if (isFreed())
+            throw new GpJSONException("You can't operate on a freed index");
         QueryCompiler queryCompiler = new QueryCompiler(new String[] {query});
         JSONPathQuery compiledQuery = queryCompiler.getCompiledQueries()[0];
         Result result = new Result();
@@ -88,6 +94,10 @@ public class Index implements TruffleObject {
             LOGGER.log(Level.FINE, query + " executed successfully (cpu fallback)");
         }
         return result;
+    }
+
+    private boolean isFreed() {
+        return isFreed;
     }
 
     @ExportMessage
@@ -118,8 +128,8 @@ public class Index implements TruffleObject {
                 String query = InvokeUtils.expectString(arguments[0], "argument 1 of " + QUERY + " must be a string");
                 return query(query);
             case FREE:
-                // TODO
-                return null;
+                free();
+                return this;
             default:
                 throw UnknownIdentifierException.create(member);
         }

@@ -27,6 +27,9 @@ for (let k = 0; k < numRuns; k++) {
     }
 }
 
+index.free();
+file.free();
+
 console.log("1k queries: " + count + " results in " + time + "s");
 engine.close();
 

@@ -32,6 +32,7 @@ public class File implements TruffleObject {
     private final Map<String,Value> kernels;
     private final DataBuilder[] dataBuilder;
     private final int numPartitions;
+    private boolean isFreed = false;
 
     private static final TruffleLogger LOGGER = GpJSONLogger.getLogger(GPJSON_LOGGER);
 
@@ -45,14 +46,21 @@ public class File implements TruffleObject {
     public void free() {
         for (int i=0; i < numPartitions; i++)
             dataBuilder[i].free();
+        isFreed = true;
     }
 
     public Index index(int depth, boolean combined) {
+        if (isFreed())
+            throw new GpJSONException("You can't operate on a freed file");
         IndexBuilder[] indexBuilder = new IndexBuilder[numPartitions];
         for (int i=0; i < numPartitions; i++) {
             indexBuilder[i] = new IndexBuilder(cu, kernels, dataBuilder[i], combined, depth);
         }
         return new Index(cu, kernels, dataBuilder, indexBuilder, numPartitions);
+    }
+
+    private boolean isFreed() {
+        return isFreed;
     }
 
     @ExportMessage
@@ -84,8 +92,8 @@ public class File implements TruffleObject {
                 boolean combined = InvokeUtils.expectBoolean(arguments[1], "argument 2 of " + INDEX + " must be a boolean");
                 return index(depth, combined);
             case FREE:
-                // TODO
-                return null;
+                free();
+                return this;
             default:
                 throw UnknownIdentifierException.create(member);
         }
