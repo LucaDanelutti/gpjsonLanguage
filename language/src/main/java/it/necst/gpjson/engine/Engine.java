@@ -54,7 +54,7 @@ public class Engine implements TruffleObject {
                 .newBuilder()
                 .allowAllAccess(true)
                 .allowExperimentalOptions(true)
-                .option("grcuda.ExecutionPolicy", "async")
+                .option("grcuda.ExecutionPolicy", "sync")
                 .option("grcuda.InputPrefetch", "true")
                 .option("grcuda.RetrieveNewStreamPolicy", "always-new") // always-new, reuse
                 .option("grcuda.RetrieveParentStreamPolicy", "multigpu-disjoint") // same-as-parent, disjoint, multigpu-early-disjoint, multigpu-disjoint

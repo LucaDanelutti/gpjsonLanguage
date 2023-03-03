@@ -8,6 +8,7 @@
 #define OPCODE_MOVE_TO_KEY 0x04
 #define OPCODE_MOVE_TO_INDEX 0x05
 #define OPCODE_EXPRESSION_STRING_EQUALS 0x06
+#define OPCODE_MOVE_TO_INDEX_REVERSE 0x07
 
 __global__ void find_value(char *file, long n, long *new_line_index, long new_line_index_size, long *string_index, long *leveled_bitmaps_index, long leveled_bitmaps_index_size, long level_size, char *query, int result_size, long *result) {
   int index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -47,6 +48,9 @@ __global__ void find_value(char *file, long n, long *new_line_index, long new_li
     // Index expression
     int looking_for_index;
     int current_index[MAX_NUM_LEVELS];
+
+    // Reverse index expression
+    int reverse_starting_point[MAX_NUM_LEVELS];
 
     for (int j = 0; j < MAX_NUM_LEVELS; j++) {
       current_index[j] = -1;
@@ -173,6 +177,27 @@ __global__ void find_value(char *file, long n, long *new_line_index, long new_li
 
             break;
           }
+          case OPCODE_MOVE_TO_INDEX_REVERSE: { // Move to index reverse
+            looking_for_index = 0;
+            int i = 0;
+            int b;
+
+            while (((b = query[query_position++]) & 0x80) != 0) {
+              looking_for_index |= (b & 0x7F) << i;
+              i += 7;
+              assert(i <= 35);
+            }
+            looking_for_index = looking_for_index | (b << i);
+
+            if (current_index[current_level] == -1) {
+              j = level_ends[current_level]-1;
+              // Current char shoul be `]`
+              assert(file[j] == ']');
+              current_index[current_level] = 0;
+              j--;
+            }
+            break;
+          }
           case OPCODE_EXPRESSION_STRING_EQUALS: {
             looking_for_length = 0;
             int i = 0;
@@ -223,7 +248,10 @@ __global__ void find_value(char *file, long n, long *new_line_index, long new_li
 
       long current_level_index = leveled_bitmaps_index[level_size * current_level + j / 64];
       if (current_level_index == 0) {
-        j += 64 - (j % 64) - 1;
+        if (looking_for_type == OPCODE_MOVE_TO_KEY)
+          j -= 64 - (j % 64) - 1;
+        else
+          j += 64 - (j % 64) - 1;
         continue;
       }
       bool is_structural = (current_level_index & (1L << j % 64)) != 0;
@@ -262,7 +290,15 @@ __global__ void find_value(char *file, long n, long *new_line_index, long new_li
             execute_ir = true;
           }
         }
-      }
+      } else if (looking_for_type == OPCODE_MOVE_TO_INDEX_REVERSE) {
+        if (is_structural && file[j] == ',') {
+          current_index[current_level]++;
+          if (looking_for_index == current_index[current_level]) {
+            reverse_starting_point[current_level] = j--;
+            execute_ir = true;
+          }
+        }
+      } 
     }
 
     end_single_line: ;
