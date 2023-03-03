@@ -1,10 +1,11 @@
-package it.necst.gpjson;
+package it.necst.gpjson.objects;
 
 import com.oracle.truffle.api.CompilerAsserts;
 import com.oracle.truffle.api.interop.InteropLibrary;
 import com.oracle.truffle.api.interop.InvalidArrayIndexException;
 import com.oracle.truffle.api.interop.UnsupportedMessageException;
 import com.oracle.truffle.api.interop.UnsupportedTypeException;
+import it.necst.gpjson.GpJSONInternalException;
 
 public class InvokeUtils {
     private static final InteropLibrary INTEROP = InteropLibrary.getFactory().getUncached();

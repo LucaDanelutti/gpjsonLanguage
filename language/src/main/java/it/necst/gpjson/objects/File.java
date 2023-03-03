@@ -10,7 +10,6 @@ import com.oracle.truffle.api.library.ExportLibrary;
 import com.oracle.truffle.api.library.ExportMessage;
 import it.necst.gpjson.GpJSONException;
 import it.necst.gpjson.GpJSONLogger;
-import it.necst.gpjson.InvokeUtils;
 import it.necst.gpjson.engine.core.DataBuilder;
 import it.necst.gpjson.engine.core.IndexBuilder;
 import org.graalvm.polyglot.Value;

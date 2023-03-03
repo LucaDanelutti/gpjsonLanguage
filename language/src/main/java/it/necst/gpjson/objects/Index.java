@@ -10,8 +10,7 @@ import com.oracle.truffle.api.library.ExportLibrary;
 import com.oracle.truffle.api.library.ExportMessage;
 import it.necst.gpjson.GpJSONException;
 import it.necst.gpjson.GpJSONLogger;
-import it.necst.gpjson.InvokeUtils;
-import it.necst.gpjson.engine.FileFallbackQuery;
+import it.necst.gpjson.engine.core.FallbackQueryExecutor;
 import it.necst.gpjson.engine.core.DataBuilder;
 import it.necst.gpjson.engine.core.IndexBuilder;
 import it.necst.gpjson.engine.core.QueryCompiler;
@@ -85,7 +84,7 @@ public class Index implements TruffleObject {
             }
             LOGGER.log(Level.FINE, query + " executed successfully");
         } else {
-            result = new ResultFallbackQuery(FileFallbackQuery.fallbackQuery(dataBuilder[0].getFileName(), query));
+            result = new ResultFallbackQuery(FallbackQueryExecutor.fallbackQuery(dataBuilder[0].getFileName(), query));
             LOGGER.log(Level.FINE, query + " executed successfully (cpu fallback)");
         }
         return result;

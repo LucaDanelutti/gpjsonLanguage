@@ -1,4 +1,4 @@
-package it.necst.gpjson.engine;
+package it.necst.gpjson.engine.core;
 
 import com.jayway.jsonpath.*;
 
@@ -14,7 +14,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.Collections;
 
-public class FileFallbackQuery {
+public class FallbackQueryExecutor {
     public static List<List<String>> fallbackQuery(String fileName, String query) {
         Configuration conf = Configuration.defaultConfiguration()
                 .addOptions(Option.ALWAYS_RETURN_LIST, Option.ALWAYS_RETURN_LIST);

@@ -11,7 +11,7 @@ import com.oracle.truffle.api.library.ExportMessage;
 import it.necst.gpjson.GpJSONException;
 import it.necst.gpjson.GpJSONInternalException;
 import it.necst.gpjson.GpJSONLogger;
-import it.necst.gpjson.InvokeUtils;
+import it.necst.gpjson.objects.InvokeUtils;
 import it.necst.gpjson.engine.core.DataLoader;
 import it.necst.gpjson.engine.core.QueryCompiler;
 import it.necst.gpjson.jsonpath.JSONPathQuery;
