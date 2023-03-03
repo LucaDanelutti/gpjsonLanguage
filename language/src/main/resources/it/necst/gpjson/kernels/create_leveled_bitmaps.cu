@@ -13,6 +13,13 @@ __global__ void create_leveled_bitmaps(char *file, long n, long *string_index, c
   long start = index * chars_per_thread;
   long end = start + chars_per_thread;
 
+  // Initialize
+  for (long i = start; i < end && i < leveled_bitmaps_index_size; i += 1) {
+    for (long level = 0; level < num_levels; level += 1) {
+      leveled_bitmaps_index[level_size * level + i/64] = 0;
+    }
+  }
+
   // Temporary variable for storing the current string index
   long strings = 0;
 

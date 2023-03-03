@@ -14,8 +14,6 @@ import static it.necst.gpjson.GpJSONLogger.GPJSON_LOGGER;
 public class FileQuery {
     private final Value cu;
     private final Map<String,Value> kernels;
-    private final int gridSize = 1024*16;
-    private final int blockSize = 1024;
     private final int queryGridSize = 512;
     private final int queryBlockSize = 1024;
 
@@ -69,11 +67,7 @@ public class FileQuery {
         long localStart;
         long start = System.nanoTime();
         long numberOfResults = compiledQuery.getNumResults();
-        resultMemory = cu.invokeMember("DeviceArray", "long", fileIndex.getNumLines() * 2 * numberOfResults);
         queryMemory = cu.invokeMember("DeviceArray", "char", compiledQuery.getIr().size());
-        localStart = System.nanoTime();
-        kernels.get("initialize").execute(gridSize, blockSize).execute(resultMemory, resultMemory.getArraySize(), -1);
-        LOGGER.log(Level.FINEST, "initialize() done in " + (System.nanoTime() - localStart) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         localStart = System.nanoTime();
         byte[] queryByteArray = compiledQuery.getIr().toByteArray();
         StringBuilder stringBuilder = new StringBuilder();
@@ -83,6 +77,7 @@ public class FileQuery {
         }
         LOGGER.log(Level.FINER, "compiledQuery: " + stringBuilder);
         LOGGER.log(Level.FINEST, "copyCompiledQuery() done in " + (System.nanoTime() - localStart) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+        resultMemory = cu.invokeMember("DeviceArray", "long", fileIndex.getNumLines() * 2 * numberOfResults);
         localStart = System.nanoTime();
         kernels.get("find_value").execute(queryGridSize, queryBlockSize).execute(fileMemory.getFileMemory(), fileMemory.getFileSize(), fileIndex.getNewlineIndexMemory(), fileIndex.getNumLines(), fileIndex.getStringIndexMemory(), fileIndex.getLeveledBitmapsIndexMemory(), fileMemory.getLevelSize()*fileIndex.getNumLevels(), fileMemory.getLevelSize(), queryMemory, compiledQuery.getNumResults(), resultMemory);
         LOGGER.log(Level.FINEST, "find_value() done in " + (System.nanoTime() - localStart) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");

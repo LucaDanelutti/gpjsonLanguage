@@ -144,10 +144,6 @@ public class FileIndex {
 
     private void createLeveledBitmapsIndex() {
         long start;
-        leveledBitmapsIndexMemory = cu.invokeMember("DeviceArray", "long", fileMemory.getLevelSize() * numLevels);
-        start = System.nanoTime();
-        kernels.get("initialize").execute(gridSize, blockSize).execute(leveledBitmapsIndexMemory, leveledBitmapsIndexMemory.getArraySize(), 0);
-        LOGGER.log(Level.FINEST, "initialize() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         carryIndexMemory = cu.invokeMember("DeviceArray", "char", gridSize * blockSize);
         start = System.nanoTime();
         kernels.get("create_leveled_bitmaps_carry_index").execute(gridSize, blockSize).execute(fileMemory.getFileMemory(), fileMemory.getFileSize(), stringIndexMemory, carryIndexMemory);
@@ -160,6 +156,7 @@ public class FileIndex {
         kernels.get("char_sum2").execute(1, 1).execute(carryIndexMemory, carryIndexMemory.getArraySize(), reductionGridSize*reductionBlockSize, -1, charSumBase);
         kernels.get("char_sum3").execute(reductionGridSize, reductionBlockSize).execute(carryIndexMemory, carryIndexMemory.getArraySize(), charSumBase, 1, carryIndexMemoryWithOffset);
         LOGGER.log(Level.FINEST, "sum() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+        leveledBitmapsIndexMemory = cu.invokeMember("DeviceArray", "long", fileMemory.getLevelSize() * numLevels);
         start = System.nanoTime();
         kernels.get("create_leveled_bitmaps").execute(gridSize, blockSize).execute(fileMemory.getFileMemory(), fileMemory.getFileSize(), stringIndexMemory, carryIndexMemoryWithOffset, leveledBitmapsIndexMemory, fileMemory.getLevelSize() * numLevels, fileMemory.getLevelSize(), numLevels);
         LOGGER.log(Level.FINEST, "create_leveled_bitmaps() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");

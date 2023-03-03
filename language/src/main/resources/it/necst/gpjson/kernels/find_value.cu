@@ -15,9 +15,15 @@ __global__ void find_value(char *file, long n, long *new_line_index, long new_li
 
   long lines_per_thread = (new_line_index_size+stride-1) / stride;
 
-  long start = index * lines_per_thread;
-  long end = start + lines_per_thread;
+  // Initialization
+  long start = index * lines_per_thread * 2 * result_size;
+  long end = start + lines_per_thread * 2 * result_size;
+  for (long i = start; i < end && i < new_line_index_size * 2 * result_size; i += 1) {
+    result[i] = -1;
+  }
 
+  start = index * lines_per_thread;
+  end = start + lines_per_thread;
   for (long i = start; i < end && i < new_line_index_size; i += 1) {
     long new_line_start = new_line_index[i];
     long new_line_end = (i + 1 < new_line_index_size) ? new_line_index[i+1] : n;
