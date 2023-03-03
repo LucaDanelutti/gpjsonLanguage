@@ -20,7 +20,7 @@ public class QueryExecutor {
 
     private Value resultMemory;
 
-    private final DataLoader dataLoader;
+    private final DataBuilder dataBuilder;
     private final IndexBuilder indexBuilder;
     private final JSONPathQuery compiledQuery;
 
@@ -28,19 +28,21 @@ public class QueryExecutor {
 
     private Value queryMemory;
 
-    public QueryExecutor(Value cu, Map<String, Value> kernels, DataLoader dataLoader, IndexBuilder indexBuilder, JSONPathQuery query) {
+    public QueryExecutor(Value cu, Map<String, Value> kernels, DataBuilder dataBuilder, IndexBuilder indexBuilder, JSONPathQuery query) {
         this.cu = cu;
         this.kernels = kernels;
-        this.dataLoader = dataLoader;
+        this.dataBuilder = dataBuilder;
         this.indexBuilder = indexBuilder;
         this.compiledQuery = query;
         this.query();
     }
 
     public void free() {
+        long localStart = System.nanoTime();
         queryMemory.invokeMember("free");
-
         resultMemory.invokeMember("free");
+        LOGGER.log(Level.FINEST, "free(queryExecutor) done in " + (System.nanoTime() - localStart) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+
     }
 
     public int[][] copyBuildResultArray() {
@@ -74,13 +76,11 @@ public class QueryExecutor {
         StringBuilder stringBuilder = new StringBuilder();
         for (int j = 0; j < queryByteArray.length; j++) {
             queryMemory.setArrayElement(j, queryByteArray[j]);
-            stringBuilder.append(String.format("%x | ", Byte.toUnsignedInt(queryByteArray[j])));
         }
-        LOGGER.log(Level.FINER, "compiledQuery: " + stringBuilder);
         LOGGER.log(Level.FINEST, "copyCompiledQuery() done in " + (System.nanoTime() - localStart) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         resultMemory = cu.invokeMember("DeviceArray", "long", indexBuilder.getNumLines() * 2 * numberOfResults);
         localStart = System.nanoTime();
-        kernels.get("find_value").execute(queryGridSize, queryBlockSize).execute(dataLoader.getFileMemory(), dataLoader.getFileSize(), indexBuilder.getNewlineIndexMemory(), indexBuilder.getNumLines(), indexBuilder.getStringIndexMemory(), indexBuilder.getLeveledBitmapsIndexMemory(), dataLoader.getLevelSize()* indexBuilder.getNumLevels(), dataLoader.getLevelSize(), queryMemory, compiledQuery.getNumResults(), resultMemory);
+        kernels.get("find_value").execute(queryGridSize, queryBlockSize).execute(dataBuilder.getFileMemory(), dataBuilder.getFileSize(), indexBuilder.getNewlineIndexMemory(), indexBuilder.getNumLines(), indexBuilder.getStringIndexMemory(), indexBuilder.getLeveledBitmapsIndexMemory(), dataBuilder.getLevelSize()* indexBuilder.getNumLevels(), dataBuilder.getLevelSize(), queryMemory, compiledQuery.getNumResults(), resultMemory);
         LOGGER.log(Level.FINEST, "find_value() done in " + (System.nanoTime() - localStart) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         LOGGER.log(Level.FINER, "query() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
     }

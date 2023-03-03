@@ -1,4 +1,4 @@
-package it.necst.gpjson.result;
+package it.necst.gpjson.objects;
 
 import com.oracle.truffle.api.interop.InteropLibrary;
 import com.oracle.truffle.api.interop.TruffleObject;

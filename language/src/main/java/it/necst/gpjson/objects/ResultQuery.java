@@ -1,4 +1,4 @@
-package it.necst.gpjson.result;
+package it.necst.gpjson.objects;
 
 public abstract class ResultQuery {
 

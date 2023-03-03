@@ -1,4 +1,4 @@
-package it.necst.gpjson.result;
+package it.necst.gpjson.objects;
 
 import com.oracle.truffle.api.CompilerDirectives;
 import com.oracle.truffle.api.interop.InteropLibrary;
@@ -10,11 +10,11 @@ import com.oracle.truffle.api.library.ExportMessage;
 import java.util.List;
 
 @ExportLibrary(InteropLibrary.class)
-public class ResultFallbackQuery extends ResultQuery implements TruffleObject {
-    private final List<List<String>> values;
+public class ResultFallbackLine implements TruffleObject {
+    private final List<String> value;
 
-    public ResultFallbackQuery(List<List<String>> values) {
-        this.values = values;
+    public ResultFallbackLine(List<String> value) {
+        this.value = value;
     }
 
     @ExportMessage
@@ -27,22 +27,23 @@ public class ResultFallbackQuery extends ResultQuery implements TruffleObject {
     @SuppressWarnings("unused")
     @CompilerDirectives.TruffleBoundary
     public Object readArrayElement(long index) throws InvalidArrayIndexException {
-        if (index >= this.values.size()) {
+        if (index >= this.value.size()) {
             throw InvalidArrayIndexException.create(index);
         }
 
-        return new ResultFallbackLine(this.values.get((int) index));
+        return this.value.get((int) index);
     }
 
     @ExportMessage
     @SuppressWarnings("unused")
     @CompilerDirectives.TruffleBoundary
     public boolean isArrayElementReadable(long index) {
-        return index < this.values.size();
+        return index < this.value.size();
     }
 
     @ExportMessage
+    @SuppressWarnings("unused")
     public long getArraySize() {
-        return this.values.size();
+        return this.value.size();
     }
 }

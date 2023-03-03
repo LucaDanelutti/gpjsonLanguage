@@ -1,4 +1,4 @@
-package it.necst.gpjson.result;
+package it.necst.gpjson.objects;
 
 import com.oracle.truffle.api.CompilerDirectives;
 import com.oracle.truffle.api.interop.InteropLibrary;
@@ -6,15 +6,23 @@ import com.oracle.truffle.api.interop.InvalidArrayIndexException;
 import com.oracle.truffle.api.interop.TruffleObject;
 import com.oracle.truffle.api.library.ExportLibrary;
 import com.oracle.truffle.api.library.ExportMessage;
+import it.necst.gpjson.Pair;
 
-import java.util.List;
+import java.nio.MappedByteBuffer;
+import java.util.*;
 
 @ExportLibrary(InteropLibrary.class)
-public class ResultFallbackLine implements TruffleObject {
-    private final List<String> value;
+public class ResultGPJSONQuery extends ResultQuery implements TruffleObject {
+    private long numberOfLines = 0;
+    private final NavigableMap<Long, Pair<int[][], MappedByteBuffer>> lines;
 
-    public ResultFallbackLine(List<String> value) {
-        this.value = value;
+    public ResultGPJSONQuery() {
+        this.lines = new TreeMap<>();
+    }
+
+    public void addPartition(int[][] lines, MappedByteBuffer file, long numberOfLines) {
+        this.lines.put(this.numberOfLines, new Pair<>(lines, file));
+        this.numberOfLines += numberOfLines;
     }
 
     @ExportMessage
@@ -27,23 +35,25 @@ public class ResultFallbackLine implements TruffleObject {
     @SuppressWarnings("unused")
     @CompilerDirectives.TruffleBoundary
     public Object readArrayElement(long index) throws InvalidArrayIndexException {
-        if (index >= this.value.size()) {
+        if (index >= numberOfLines) {
             throw InvalidArrayIndexException.create(index);
         }
 
-        return this.value.get((int) index);
+        long partitionStart = lines.floorKey(index);
+        Pair<int[][], MappedByteBuffer> pair = lines.get(partitionStart);
+        return new ResultGPJSONLine(pair.getKey()[(int) (index-partitionStart)], pair.getValue());
     }
 
     @ExportMessage
     @SuppressWarnings("unused")
     @CompilerDirectives.TruffleBoundary
     public boolean isArrayElementReadable(long index) {
-        return index < this.value.size();
+        return index < this.numberOfLines;
     }
 
     @ExportMessage
     @SuppressWarnings("unused")
     public long getArraySize() {
-        return this.value.size();
+        return this.numberOfLines;
     }
 }
