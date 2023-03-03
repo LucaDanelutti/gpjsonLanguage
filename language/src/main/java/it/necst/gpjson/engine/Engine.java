@@ -44,6 +44,7 @@ public class Engine implements TruffleObject {
     private final Value cu;
     Map<String,Value> kernels = new HashMap<>();
 
+    private final int numGPUs = 2;
     private final int partitionSize = (int) (1 * Math.pow(2, 30));
 
     private static final TruffleLogger LOGGER = GpJSONLogger.getLogger(GPJSON_LOGGER);
@@ -62,7 +63,7 @@ public class Engine implements TruffleObject {
                 .option("grcuda.ForceStreamAttach", "false")
                 .option("grcuda.EnableComputationTimers", "false")
                 .option("grcuda.MemAdvisePolicy", "none") // none, read-mostly, preferred
-                .option("grcuda.NumberOfGPUs", "2")
+                .option("grcuda.NumberOfGPUs", Integer.toString(numGPUs))
                 // DAG
                 .option("grcuda.ExportDAG", "./dag")
                 // logging settings
