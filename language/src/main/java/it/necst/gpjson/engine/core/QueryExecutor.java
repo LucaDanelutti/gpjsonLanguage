@@ -12,7 +12,7 @@ import java.util.logging.Level;
 
 import static it.necst.gpjson.GpJSONLogger.GPJSON_LOGGER;
 
-public class Query {
+public class QueryExecutor {
     private final Value cu;
     private final Map<String,Value> kernels;
     private final int queryGridSize = 512;
@@ -20,19 +20,19 @@ public class Query {
 
     private Value resultMemory;
 
-    private final Data data;
-    private final Index index;
+    private final DataLoader dataLoader;
+    private final IndexBuilder indexBuilder;
     private final JSONPathQuery compiledQuery;
 
     private static final TruffleLogger LOGGER = GpJSONLogger.getLogger(GPJSON_LOGGER);
 
     private Value queryMemory;
 
-    public Query(Value cu, Map<String, Value> kernels, Data data, Index index, JSONPathQuery query) {
+    public QueryExecutor(Value cu, Map<String, Value> kernels, DataLoader dataLoader, IndexBuilder indexBuilder, JSONPathQuery query) {
         this.cu = cu;
         this.kernels = kernels;
-        this.data = data;
-        this.index = index;
+        this.dataLoader = dataLoader;
+        this.indexBuilder = indexBuilder;
         this.compiledQuery = query;
         this.query();
     }
@@ -52,8 +52,8 @@ public class Query {
         resultMemory.invokeMember("copyTo", longArray.getAddress());
         LOGGER.log(Level.FINEST, "copyTo() done in " + (System.nanoTime() - localStart) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         localStart = System.nanoTime();
-        int[][] resultIndexes = new int[index.getNumLines()][(int) numberOfResults * 2];
-        for (int j = 0; j < index.getNumLines(); j++) {
+        int[][] resultIndexes = new int[indexBuilder.getNumLines()][(int) numberOfResults * 2];
+        for (int j = 0; j < indexBuilder.getNumLines(); j++) {
             for (int k = 0; k < numberOfResults*2; k+=2) {
                 resultIndexes[j][k] = (int) longArray.getValueAt(j*numberOfResults*2+ k);
                 resultIndexes[j][k+1] = (int) longArray.getValueAt(j*numberOfResults*2 + k + 1);
@@ -78,9 +78,9 @@ public class Query {
         }
         LOGGER.log(Level.FINER, "compiledQuery: " + stringBuilder);
         LOGGER.log(Level.FINEST, "copyCompiledQuery() done in " + (System.nanoTime() - localStart) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
-        resultMemory = cu.invokeMember("DeviceArray", "long", index.getNumLines() * 2 * numberOfResults);
+        resultMemory = cu.invokeMember("DeviceArray", "long", indexBuilder.getNumLines() * 2 * numberOfResults);
         localStart = System.nanoTime();
-        kernels.get("find_value").execute(queryGridSize, queryBlockSize).execute(data.getFileMemory(), data.getFileSize(), index.getNewlineIndexMemory(), index.getNumLines(), index.getStringIndexMemory(), index.getLeveledBitmapsIndexMemory(), data.getLevelSize()* index.getNumLevels(), data.getLevelSize(), queryMemory, compiledQuery.getNumResults(), resultMemory);
+        kernels.get("find_value").execute(queryGridSize, queryBlockSize).execute(dataLoader.getFileMemory(), dataLoader.getFileSize(), indexBuilder.getNewlineIndexMemory(), indexBuilder.getNumLines(), indexBuilder.getStringIndexMemory(), indexBuilder.getLeveledBitmapsIndexMemory(), dataLoader.getLevelSize()* indexBuilder.getNumLevels(), dataLoader.getLevelSize(), queryMemory, compiledQuery.getNumResults(), resultMemory);
         LOGGER.log(Level.FINEST, "find_value() done in " + (System.nanoTime() - localStart) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         LOGGER.log(Level.FINER, "query() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
     }

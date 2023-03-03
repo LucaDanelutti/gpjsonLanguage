@@ -11,7 +11,7 @@ import java.util.logging.Level;
 
 import static it.necst.gpjson.GpJSONLogger.GPJSON_LOGGER;
 
-public class Data {
+public class DataLoader {
     private final Value cu;
     private final String fileName;
     private Value fileMemory;
@@ -21,7 +21,7 @@ public class Data {
 
     private static final TruffleLogger LOGGER = GpJSONLogger.getLogger(GPJSON_LOGGER);
 
-    public Data(Value cu, String fileName, MappedByteBuffer fileBuffer, long fileSize) {
+    public DataLoader(Value cu, String fileName, MappedByteBuffer fileBuffer, long fileSize) {
         this.cu = cu;
         this.fileName = fileName;
         this.fileBuffer = fileBuffer;
