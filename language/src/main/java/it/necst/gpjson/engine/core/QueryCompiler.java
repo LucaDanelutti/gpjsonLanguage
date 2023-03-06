@@ -11,7 +11,7 @@ import static it.necst.gpjson.GpJSONLogger.GPJSON_LOGGER;
 
 public class QueryCompiler {
     private final JSONPathQuery[] compiledQueries;
-    private int maxDepth;
+    private int maxDepth = 1;
 
     private static final TruffleLogger LOGGER = GpJSONLogger.getLogger(GPJSON_LOGGER);
 
