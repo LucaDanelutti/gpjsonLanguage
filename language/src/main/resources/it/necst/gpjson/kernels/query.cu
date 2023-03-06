@@ -31,8 +31,15 @@ __global__ void executeQuery(char *file, long n, long *newlineIndex, long newlin
 
   long linesPerThread = (newlineIndexSize+stride-1) / stride;
 
-  long start = index * linesPerThread;
-  long end = start + linesPerThread;
+  // Initialization
+  long start = index * linesPerThread * 2 * numResults;
+  long end = start + linesPerThread * 2 * numResults;
+  for (long i = start; i < end && i < newlineIndexSize * 2 * numResults; i += 1) {
+    result[i] = -1;
+  }
+
+  start = index * linesPerThread;
+  end = start + linesPerThread;
 
   for (long fileIndex = start; fileIndex < end && fileIndex < newlineIndexSize; fileIndex += 1) {
     long lineStart = newlineIndex[fileIndex];
