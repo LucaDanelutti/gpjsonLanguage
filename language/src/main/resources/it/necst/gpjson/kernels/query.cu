@@ -207,6 +207,46 @@ __global__ void executeQuery(char *file, long n, long *newlineIndex, long newlin
           }
           break;
         }
+        case OPCODE_EXPRESSION_STRING_EQUALS: {
+          keyLen = 0;
+          
+          int i = 0;
+          int b;
+          while (((b = query[queryPos++]) & 0x80) != 0) {
+            keyLen |= (b & 0x7F) << i;
+            i += 7;
+            assert(i <= 35);
+          }
+          keyLen = keyLen | (b << i);
+
+          key = query + queryPos;
+          queryPos += keyLen;
+
+          while(file[lineIndex] == ' ' && lineIndex < levelEnd[currentLevel]) {
+            lineIndex++;
+          }
+          long stringEnd = levelEnd[currentLevel] - 1;
+          while(file[stringEnd] == ' ' && lineIndex < stringEnd) {
+            stringEnd--;
+          }
+          assert(file[lineIndex] == '"' && file[stringEnd] == '"');
+
+          long stringLength = stringEnd - lineIndex + 1;
+          if (stringLength != keyLen) {
+            goto nextLine;
+          }
+
+          for (long k = 0; k < keyLen; k++) {
+            if (key[k] != file[lineIndex + k]) {
+              goto nextLine;
+            }
+          }
+          break;
+        }
+        default: {
+          assert(false);
+          break;
+        }
       }
     }
     nextLine: ;
