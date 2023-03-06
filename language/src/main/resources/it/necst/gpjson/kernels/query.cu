@@ -35,26 +35,29 @@ __global__ void executeQuery(char *file, long n, long *newlineIndex, long newlin
   long end = start + linesPerThread;
 
   for (long fileIndex = start; fileIndex < end && fileIndex < newlineIndexSize; fileIndex += 1) {
-    long newlineStart = newlineIndex[fileIndex];
-    long newlineEnd = (fileIndex + 1 < newlineIndexSize) ? newlineIndex[fileIndex+1] : n;
+    long lineStart = newlineIndex[fileIndex];
+    long lineEnd = (fileIndex + 1 < newlineIndexSize) ? newlineIndex[fileIndex+1] : n;
 
-    while(file[newlineEnd] != '}' && newlineEnd > newlineStart) {
-      newlineEnd--;
+    while(file[lineEnd] != '}' && lineEnd > lineStart) {
+      lineEnd--;
     }
     
-    while(file[newlineStart] != '{' && newlineStart < newlineEnd) {
-      newlineStart++;
+    while(file[lineStart] != '{' && lineStart < lineEnd) {
+      lineStart++;
     }
 
-    long lineIndex = newlineStart;
-    assert(file[newlineStart] == '{');
-    assert(file[newlineEnd] == '}');
+    if (lineStart == lineEnd)
+      continue;
+
+    long lineIndex = lineStart;
+    assert(file[lineStart] == '{');
+    assert(file[lineEnd] == '}');
 
     int currentLevel = 0;
     int queryPos = 0;
     char currentOpcode;
     long levelEnd[MAX_NUM_LEVELS];
-    levelEnd[0] = newlineEnd;
+    levelEnd[0] = lineEnd;
     for (int j = 1; j < MAX_NUM_LEVELS; j++) {
       levelEnd[j] = -1;
     }
@@ -143,14 +146,14 @@ __global__ void executeQuery(char *file, long n, long *newlineIndex, long newlin
             assert(file[lineIndex] == ':' || file[lineIndex] == '}');
             if (file[lineIndex] == ':') {
               long stringEnd = -1;
-              for (long endCandidate = lineIndex-1; endCandidate > newlineStart; endCandidate--) {
+              for (long endCandidate = lineIndex-1; endCandidate > lineStart; endCandidate--) {
                 if ((stringIndex[endCandidate / 64] & (1L << endCandidate % 64)) != 0) {
                   stringEnd = endCandidate;
                   break;
                 }
               }
               long stringStart = stringEnd - keyLen;
-              if (stringStart < newlineStart || file[stringStart] != '"') {
+              if (stringStart < lineStart || file[stringStart] != '"') {
                 lineIndex++;
                 lineIndex = findNextStructuralChar(leveledBitmapsIndex, levelEnd[currentLevel], lineIndex, currentLevel, levelSize);
                 assert(file[lineIndex] == ',' || file[lineIndex] == '}');
