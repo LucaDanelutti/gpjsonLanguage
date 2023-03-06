@@ -59,7 +59,7 @@ __global__ void executeQuery(char *file, long n, long *newlineIndex, long newlin
       levelEnd[j] = -1;
     }
 
-    int numResultsIn = 0;
+    int numResultsIndex = 0;
 
     char *key;
     int keyLen;
@@ -68,10 +68,6 @@ __global__ void executeQuery(char *file, long n, long *newlineIndex, long newlin
     for (int j = 0; j < MAX_NUM_LEVELS; j++) {
       currIndex[j] = -1;
     }
-
-    // for (long lineIndex = newlineStart; lineIndex < levelEnd[currentLevel] && lineIndex < n; lineIndex += 1) {
-      
-    // }
 
     while (true) {
       currentOpcode = query[queryPos++];
@@ -105,7 +101,7 @@ __global__ void executeQuery(char *file, long n, long *newlineIndex, long newlin
           currentLevel++;
           // Now we need to find the end of this level, unless we already have one
           if (levelEnd[currentLevel] == -1) {
-            for (long endCandidate = lineIndex + 1; endCandidate < levelEnd[currentLevel - 1]; endCandidate += 1) {
+            for (long endCandidate = lineIndex + 1; endCandidate <= levelEnd[currentLevel - 1]; endCandidate += 1) {
               long index = leveled_bitmaps_index[level_size * (currentLevel - 1) + endCandidate / 64];
               if (index == 0) {
                 endCandidate += 64 - (endCandidate % 64) - 1;
@@ -127,9 +123,9 @@ __global__ void executeQuery(char *file, long n, long *newlineIndex, long newlin
         }
         case OPCODE_MOVE_TO_KEY: {
           keyLen = 0;
+          
           int i = 0;
           int b;
-
           while (((b = query[queryPos++]) & 0x80) != 0) {
             keyLen |= (b & 0x7F) << i;
             i += 7;
@@ -141,9 +137,8 @@ __global__ void executeQuery(char *file, long n, long *newlineIndex, long newlin
           queryPos += keyLen;
 
           if (file[lineIndex] == '{') {
-            lineIndex++;
-            
             searchKey:
+            lineIndex++;
             lineIndex = findNextStructuralChar(leveled_bitmaps_index, levelEnd[currentLevel], lineIndex, currentLevel, level_size);
             assert(file[lineIndex] == ':' || file[lineIndex] == '}');
             if (file[lineIndex] == ':') {
@@ -154,13 +149,13 @@ __global__ void executeQuery(char *file, long n, long *newlineIndex, long newlin
                   break;
                 }
               }
-              assert(stringEnd >= newlineStart);
-              assert(file[stringEnd] != '"');
               long stringStart = stringEnd - keyLen;
               if (stringStart < newlineStart || file[stringStart] != '"') {
                 lineIndex++;
                 lineIndex = findNextStructuralChar(leveled_bitmaps_index, levelEnd[currentLevel], lineIndex, currentLevel, level_size);
                 assert(file[lineIndex] == ',' || file[lineIndex] == '}');
+                if (file[lineIndex] == '}')
+                    goto nextLine;
                 goto searchKey;
               }
               for (int i = 0; i < keyLen; i++) {
@@ -168,11 +163,45 @@ __global__ void executeQuery(char *file, long n, long *newlineIndex, long newlin
                   lineIndex++;
                   lineIndex = findNextStructuralChar(leveled_bitmaps_index, levelEnd[currentLevel], lineIndex, currentLevel, level_size);
                   assert(file[lineIndex] == ',' || file[lineIndex] == '}');
+                  if (file[lineIndex] == '}')
+                    goto nextLine;
                   goto searchKey;
                 }
               }
             }
             lineIndex++;
+          } else {
+            goto nextLine;
+          }
+          break;
+        }
+        case OPCODE_MOVE_TO_INDEX: {
+          index = 0;
+          
+          int i = 0;
+          int b;
+          while (((b = query[queryPos++]) & 0x80) != 0) {
+            index |= (b & 0x7F) << i;
+            i += 7;
+            assert(i <= 35);
+          }
+          index = index | (b << i);
+
+          if (file[lineIndex] == '[') {
+            currIndex[currentLevel] = 0;
+
+            searchIndex:
+            lineIndex++;
+            if (currIndex[currentLevel] < index) {
+              lineIndex = findNextStructuralChar(leveled_bitmaps_index, levelEnd[currentLevel], lineIndex, currentLevel, level_size);
+              assert(file[lineIndex] == ',' || file[lineIndex] == ']');
+              if (file[lineIndex] == ',') {
+                currIndex[currentLevel]++;
+                goto searchIndex;
+              } else {
+                goto nextLine;
+              }
+            }
           } else {
             goto nextLine;
           }
