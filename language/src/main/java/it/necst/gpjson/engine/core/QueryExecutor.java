@@ -1,6 +1,6 @@
 package it.necst.gpjson.engine.core;
 
-import it.necst.gpjson.engine.UnsafeHelper;
+import it.necst.gpjson.utils.UnsafeHelper;
 import it.necst.gpjson.jsonpath.JSONPathQuery;
 import com.oracle.truffle.api.TruffleLogger;
 import org.graalvm.polyglot.Value;

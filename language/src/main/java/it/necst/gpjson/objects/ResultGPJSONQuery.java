@@ -6,7 +6,7 @@ import com.oracle.truffle.api.interop.InvalidArrayIndexException;
 import com.oracle.truffle.api.interop.TruffleObject;
 import com.oracle.truffle.api.library.ExportLibrary;
 import com.oracle.truffle.api.library.ExportMessage;
-import it.necst.gpjson.Pair;
+import it.necst.gpjson.utils.Pair;
 
 import java.nio.MappedByteBuffer;
 import java.util.*;

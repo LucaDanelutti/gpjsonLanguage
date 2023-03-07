@@ -2,7 +2,7 @@ package it.necst.gpjson.engine.core;
 
 import com.oracle.truffle.api.TruffleLogger;
 import it.necst.gpjson.GpJSONLogger;
-import it.necst.gpjson.engine.UnsafeHelper;
+import it.necst.gpjson.utils.UnsafeHelper;
 import org.graalvm.polyglot.Value;
 
 import java.nio.MappedByteBuffer;
