@@ -44,7 +44,7 @@ public class Engine implements TruffleObject {
     private final Value cu;
     Map<String,Value> kernels = new HashMap<>();
 
-    private final int numGPUs = 2;
+    private final int numGPUs = 1;
     private final int partitionSize = (int) (1 * Math.pow(2, 30));
 
     private static final TruffleLogger LOGGER = GpJSONLogger.getLogger(GPJSON_LOGGER);
@@ -54,7 +54,7 @@ public class Engine implements TruffleObject {
                 .newBuilder()
                 .allowAllAccess(true)
                 .allowExperimentalOptions(true)
-                .option("grcuda.ExecutionPolicy", "sync")
+                .option("grcuda.ExecutionPolicy", "async")
                 .option("grcuda.InputPrefetch", "true")
                 .option("grcuda.RetrieveNewStreamPolicy", "always-new") // always-new, reuse
                 .option("grcuda.RetrieveParentStreamPolicy", "multigpu-disjoint") // same-as-parent, disjoint, multigpu-early-disjoint, multigpu-disjoint
@@ -104,7 +104,7 @@ public class Engine implements TruffleObject {
         QueryCompiler queryCompiler = new QueryCompiler(queries);
         JSONPathQuery[] compiledQueries = queryCompiler.getCompiledQueries();
         Index index = file.index(queryCompiler.getMaxDepth(), combined);
-        Result result = index.query(queries, compiledQueries);
+        Result result = index.query(queries, compiledQueries, queryCompiler);
         index.free();
         file.free();
         return result;

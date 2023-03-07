@@ -25,240 +25,245 @@ __device__ int findNextStructuralChar(long *extIndex, int levelEnd, int lineInde
   return lineIndex;
 }
 
-__global__ void executeQuery(char *file, long n, long *newlineIndex, long newlineIndexSize, long *stringIndex, long *leveledBitmapsIndex, long levelSize, char *query, int numResults, long *result) {
+__global__ void executeQuery(char *file, long n, long *newlineIndex, long newlineIndexSize, long *stringIndex, long *leveledBitmapsIndex, long levelSize, char *query, int *queryOffset, int numQueries, int *resultOffsetMemory, long *result) {
   int index = blockIdx.x * blockDim.x + threadIdx.x;
   int stride = blockDim.x * gridDim.x;
 
   long linesPerThread = (newlineIndexSize+stride-1) / stride;
 
-  // Initialization
-  long start = index * linesPerThread * 2 * numResults;
-  long end = start + linesPerThread * 2 * numResults;
-  for (long i = start; i < end && i < newlineIndexSize * 2 * numResults; i += 1) {
-    result[i] = -1;
-  }
+  long start = index * linesPerThread;
+  long end = start + linesPerThread;
 
-  start = index * linesPerThread;
-  end = start + linesPerThread;
+  for (int queryIndex = 0; queryIndex < numQueries; queryIndex++) {
+    int numResults = resultOffsetMemory[queryIndex+1] - resultOffsetMemory[queryIndex];
+    long resultBase = resultOffsetMemory[queryIndex] * 2 * newlineIndexSize;
 
-  for (long fileIndex = start; fileIndex < end && fileIndex < newlineIndexSize; fileIndex += 1) {
-    long lineStart = newlineIndex[fileIndex];
-    long lineEnd = (fileIndex + 1 < newlineIndexSize) ? newlineIndex[fileIndex+1] : n;
-
-    while(file[lineEnd] != '}' && lineEnd > lineStart) {
-      lineEnd--;
-    }
-    
-    while(file[lineStart] != '{' && lineStart < lineEnd) {
-      lineStart++;
+    // Initialization
+    long startInit = start * 2 * numResults + resultBase;
+    long endInit = end * 2 * numResults + resultBase;
+    for (long i = startInit; i < endInit && i < resultOffsetMemory[queryIndex+1] * 2 * newlineIndexSize; i += 1) {
+      result[i] = -1;
     }
 
-    if (lineStart == lineEnd)
-      continue;
+    for (long fileIndex = start; fileIndex < end && fileIndex < newlineIndexSize; fileIndex += 1) {
+      long lineStart = newlineIndex[fileIndex];
+      long lineEnd = (fileIndex + 1 < newlineIndexSize) ? newlineIndex[fileIndex+1] : n;
 
-    long lineIndex = lineStart;
-    assert(file[lineStart] == '{');
-    assert(file[lineEnd] == '}');
-
-    int currentLevel = 0;
-    int queryPos = 0;
-    char currentOpcode;
-    long levelEnd[MAX_NUM_LEVELS];
-    levelEnd[0] = lineEnd;
-    for (int j = 1; j < MAX_NUM_LEVELS; j++) {
-      levelEnd[j] = -1;
-    }
-
-    int numResultsIndex = 0;
-
-    char *key;
-    int keyLen;
-    int index;
-    int currIndex[MAX_NUM_LEVELS];
-    for (int j = 0; j < MAX_NUM_LEVELS; j++) {
-      currIndex[j] = -1;
-    }
-
-    while (true) {
-      currentOpcode = query[queryPos++];
+      while(file[lineEnd] != '}' && lineEnd > lineStart) {
+        lineEnd--;
+      }
       
-      switch (currentOpcode) {
-        case OPCODE_END: {
-          goto nextLine;
-        }
-        case OPCODE_STORE_RESULT: {
-          assert(numResultsIndex < numResults);
-          // If we are storing a result, we are not in a string, so we can safely skip all whitespace
-          // to find the start of the actual value
-          while(file[lineIndex] == ' ' && lineIndex < levelEnd[currentLevel]) {
-            lineIndex++;
-          }
+      while(file[lineStart] != '{' && lineStart < lineEnd) {
+        lineStart++;
+      }
 
-          int resultIndex = fileIndex*2*numResults + numResultsIndex*2;
-          result[resultIndex] = lineIndex;
-          result[resultIndex+1] = levelEnd[currentLevel];
-          assert(result[resultIndex] <= result[resultIndex+1]);
-          numResultsIndex++;
-          break;
-        }
-        case OPCODE_MOVE_UP: {
-          lineIndex = levelEnd[currentLevel];
-          levelEnd[currentLevel] = -1;
-          currentLevel--;
-          break;
-        }
-        case OPCODE_MOVE_DOWN: {
-          currentLevel++;
-          // Now we need to find the end of this level, unless we already have one
-          if (levelEnd[currentLevel] == -1) {
-            for (long endCandidate = lineIndex + 1; endCandidate <= levelEnd[currentLevel - 1]; endCandidate += 1) {
-              long index = leveledBitmapsIndex[levelSize * (currentLevel - 1) + endCandidate / 64];
-              if (index == 0) {
-                endCandidate += 64 - (endCandidate % 64) - 1;
-                continue;
-              }
-              bool isStructural = (index & (1L << endCandidate % 64)) != 0;
-              if (isStructural) {
-                levelEnd[currentLevel] = endCandidate;
-                break;
-              }
-            }
-            assert(levelEnd[currentLevel] != -1);
-            while (file[lineIndex] == ' ') {
+      if (lineStart == lineEnd)
+        continue;
+
+      long lineIndex = lineStart;
+      assert(file[lineStart] == '{');
+      assert(file[lineEnd] == '}');
+
+      int currentLevel = 0;
+      int queryPos = queryOffset[queryIndex];
+      char currentOpcode;
+      long levelEnd[MAX_NUM_LEVELS];
+      levelEnd[0] = lineEnd;
+      for (int j = 1; j < MAX_NUM_LEVELS; j++) {
+        levelEnd[j] = -1;
+      }
+
+      int numResultsIndex = 0;
+
+      char *key;
+      int keyLen;
+      int index;
+      int currIndex[MAX_NUM_LEVELS];
+      for (int j = 0; j < MAX_NUM_LEVELS; j++) {
+        currIndex[j] = -1;
+      }
+
+      while (true) {
+        currentOpcode = query[queryPos++];
+        
+        switch (currentOpcode) {
+          case OPCODE_END: {
+            goto nextLine;
+          }
+          case OPCODE_STORE_RESULT: {
+            assert(numResultsIndex < numResults);
+            // If we are storing a result, we are not in a string, so we can safely skip all whitespace
+            // to find the start of the actual value
+            while(file[lineIndex] == ' ' && lineIndex < levelEnd[currentLevel]) {
               lineIndex++;
             }
-            assert(file[lineIndex] == '{' || file[lineIndex] == '[' || file[lineIndex] == '"');
-          }
-          break;
-        }
-        case OPCODE_MOVE_TO_KEY: {
-          keyLen = 0;
-          
-          int i = 0;
-          int b;
-          while (((b = query[queryPos++]) & 0x80) != 0) {
-            keyLen |= (b & 0x7F) << i;
-            i += 7;
-            assert(i <= 35);
-          }
-          keyLen = keyLen | (b << i);
 
-          key = query + queryPos;
-          queryPos += keyLen;
-
-          if (file[lineIndex] == '{') {
-            searchKey:
-            lineIndex++;
-            lineIndex = findNextStructuralChar(leveledBitmapsIndex, levelEnd[currentLevel], lineIndex, currentLevel, levelSize);
-            assert(file[lineIndex] == ':' || file[lineIndex] == '}');
-            if (file[lineIndex] == ':') {
-              long stringEnd = -1;
-              for (long endCandidate = lineIndex-1; endCandidate > lineStart; endCandidate--) {
-                if ((stringIndex[endCandidate / 64] & (1L << endCandidate % 64)) != 0) {
-                  stringEnd = endCandidate;
+            int resultIndex = resultBase + fileIndex*2*numResults + numResultsIndex*2;
+            result[resultIndex] = lineIndex;
+            result[resultIndex+1] = levelEnd[currentLevel];
+            assert(result[resultIndex] <= result[resultIndex+1]);
+            numResultsIndex++;
+            break;
+          }
+          case OPCODE_MOVE_UP: {
+            lineIndex = levelEnd[currentLevel];
+            levelEnd[currentLevel] = -1;
+            currentLevel--;
+            break;
+          }
+          case OPCODE_MOVE_DOWN: {
+            currentLevel++;
+            // Now we need to find the end of this level, unless we already have one
+            if (levelEnd[currentLevel] == -1) {
+              for (long endCandidate = lineIndex + 1; endCandidate <= levelEnd[currentLevel - 1]; endCandidate += 1) {
+                long index = leveledBitmapsIndex[levelSize * (currentLevel - 1) + endCandidate / 64];
+                if (index == 0) {
+                  endCandidate += 64 - (endCandidate % 64) - 1;
+                  continue;
+                }
+                bool isStructural = (index & (1L << endCandidate % 64)) != 0;
+                if (isStructural) {
+                  levelEnd[currentLevel] = endCandidate;
                   break;
                 }
               }
-              long stringStart = stringEnd - keyLen;
-              if (stringStart < lineStart || file[stringStart] != '"') {
+              assert(levelEnd[currentLevel] != -1);
+              while (file[lineIndex] == ' ') {
                 lineIndex++;
-                lineIndex = findNextStructuralChar(leveledBitmapsIndex, levelEnd[currentLevel], lineIndex, currentLevel, levelSize);
-                assert(file[lineIndex] == ',' || file[lineIndex] == '}');
-                if (file[lineIndex] == '}')
-                    goto nextLine;
-                goto searchKey;
               }
-              for (int i = 0; i < keyLen; i++) {
-                if (key[i] != file[stringStart + i + 1]) {
+              assert(file[lineIndex] == '{' || file[lineIndex] == '[' || file[lineIndex] == '"');
+            }
+            break;
+          }
+          case OPCODE_MOVE_TO_KEY: {
+            keyLen = 0;
+            
+            int i = 0;
+            int b;
+            while (((b = query[queryPos++]) & 0x80) != 0) {
+              keyLen |= (b & 0x7F) << i;
+              i += 7;
+              assert(i <= 35);
+            }
+            keyLen = keyLen | (b << i);
+
+            key = query + queryPos;
+            queryPos += keyLen;
+
+            if (file[lineIndex] == '{') {
+              searchKey:
+              lineIndex++;
+              lineIndex = findNextStructuralChar(leveledBitmapsIndex, levelEnd[currentLevel], lineIndex, currentLevel, levelSize);
+              assert(file[lineIndex] == ':' || file[lineIndex] == '}');
+              if (file[lineIndex] == ':') {
+                long stringEnd = -1;
+                for (long endCandidate = lineIndex-1; endCandidate > lineStart; endCandidate--) {
+                  if ((stringIndex[endCandidate / 64] & (1L << endCandidate % 64)) != 0) {
+                    stringEnd = endCandidate;
+                    break;
+                  }
+                }
+                long stringStart = stringEnd - keyLen;
+                if (stringStart < lineStart || file[stringStart] != '"') {
                   lineIndex++;
                   lineIndex = findNextStructuralChar(leveledBitmapsIndex, levelEnd[currentLevel], lineIndex, currentLevel, levelSize);
                   assert(file[lineIndex] == ',' || file[lineIndex] == '}');
                   if (file[lineIndex] == '}')
-                    goto nextLine;
+                      goto nextLine;
                   goto searchKey;
                 }
+                for (int i = 0; i < keyLen; i++) {
+                  if (key[i] != file[stringStart + i + 1]) {
+                    lineIndex++;
+                    lineIndex = findNextStructuralChar(leveledBitmapsIndex, levelEnd[currentLevel], lineIndex, currentLevel, levelSize);
+                    assert(file[lineIndex] == ',' || file[lineIndex] == '}');
+                    if (file[lineIndex] == '}')
+                      goto nextLine;
+                    goto searchKey;
+                  }
+                }
               }
+              lineIndex++;
+            } else {
+              goto nextLine;
             }
-            lineIndex++;
-          } else {
-            goto nextLine;
+            break;
           }
-          break;
-        }
-        case OPCODE_MOVE_TO_INDEX: {
-          index = 0;
-          
-          int i = 0;
-          int b;
-          while (((b = query[queryPos++]) & 0x80) != 0) {
-            index |= (b & 0x7F) << i;
-            i += 7;
-            assert(i <= 35);
+          case OPCODE_MOVE_TO_INDEX: {
+            index = 0;
+            
+            int i = 0;
+            int b;
+            while (((b = query[queryPos++]) & 0x80) != 0) {
+              index |= (b & 0x7F) << i;
+              i += 7;
+              assert(i <= 35);
+            }
+            index = index | (b << i);
+
+            if (file[lineIndex] == '[') {
+              currIndex[currentLevel] = 0;
+
+              searchIndex:
+              lineIndex++;
+              if (currIndex[currentLevel] < index) {
+                lineIndex = findNextStructuralChar(leveledBitmapsIndex, levelEnd[currentLevel], lineIndex, currentLevel, levelSize);
+                assert(file[lineIndex] == ',' || file[lineIndex] == ']');
+                if (file[lineIndex] == ',') {
+                  currIndex[currentLevel]++;
+                  goto searchIndex;
+                } else {
+                  goto nextLine;
+                }
+              }
+            } else {
+              goto nextLine;
+            }
+            break;
           }
-          index = index | (b << i);
+          case OPCODE_EXPRESSION_STRING_EQUALS: {
+            keyLen = 0;
+            
+            int i = 0;
+            int b;
+            while (((b = query[queryPos++]) & 0x80) != 0) {
+              keyLen |= (b & 0x7F) << i;
+              i += 7;
+              assert(i <= 35);
+            }
+            keyLen = keyLen | (b << i);
 
-          if (file[lineIndex] == '[') {
-            currIndex[currentLevel] = 0;
+            key = query + queryPos;
+            queryPos += keyLen;
 
-            searchIndex:
-            lineIndex++;
-            if (currIndex[currentLevel] < index) {
-              lineIndex = findNextStructuralChar(leveledBitmapsIndex, levelEnd[currentLevel], lineIndex, currentLevel, levelSize);
-              assert(file[lineIndex] == ',' || file[lineIndex] == ']');
-              if (file[lineIndex] == ',') {
-                currIndex[currentLevel]++;
-                goto searchIndex;
-              } else {
+            while(file[lineIndex] == ' ' && lineIndex < levelEnd[currentLevel]) {
+              lineIndex++;
+            }
+            long stringEnd = levelEnd[currentLevel] - 1;
+            while(file[stringEnd] == ' ' && lineIndex < stringEnd) {
+              stringEnd--;
+            }
+            assert(file[lineIndex] == '"' && file[stringEnd] == '"');
+
+            long stringLength = stringEnd - lineIndex + 1;
+            if (stringLength != keyLen) {
+              goto nextLine;
+            }
+
+            for (long k = 0; k < keyLen; k++) {
+              if (key[k] != file[lineIndex + k]) {
                 goto nextLine;
               }
             }
-          } else {
-            goto nextLine;
+            break;
           }
-          break;
-        }
-        case OPCODE_EXPRESSION_STRING_EQUALS: {
-          keyLen = 0;
-          
-          int i = 0;
-          int b;
-          while (((b = query[queryPos++]) & 0x80) != 0) {
-            keyLen |= (b & 0x7F) << i;
-            i += 7;
-            assert(i <= 35);
+          default: {
+            assert(false);
+            break;
           }
-          keyLen = keyLen | (b << i);
-
-          key = query + queryPos;
-          queryPos += keyLen;
-
-          while(file[lineIndex] == ' ' && lineIndex < levelEnd[currentLevel]) {
-            lineIndex++;
-          }
-          long stringEnd = levelEnd[currentLevel] - 1;
-          while(file[stringEnd] == ' ' && lineIndex < stringEnd) {
-            stringEnd--;
-          }
-          assert(file[lineIndex] == '"' && file[stringEnd] == '"');
-
-          long stringLength = stringEnd - lineIndex + 1;
-          if (stringLength != keyLen) {
-            goto nextLine;
-          }
-
-          for (long k = 0; k < keyLen; k++) {
-            if (key[k] != file[lineIndex + k]) {
-              goto nextLine;
-            }
-          }
-          break;
-        }
-        default: {
-          assert(false);
-          break;
         }
       }
+      nextLine: ;
     }
-    nextLine: ;
   }
 }

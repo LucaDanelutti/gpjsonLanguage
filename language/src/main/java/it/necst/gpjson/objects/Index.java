@@ -56,14 +56,10 @@ public class Index implements TruffleObject {
         isFreed = true;
     }
 
-    public Result query(String[] queries, JSONPathQuery[] compiledQueries) {
+    public Result query(String[] queries, JSONPathQuery[] compiledQueries, QueryCompiler queryCompiler) {
         if (isFreed())
             throw new GpJSONException("You can't operate on a freed index");
-        Result result = new Result();
-        for (int i=0; i < queries.length; i++) {
-            result.addQuery(getResult(queries[i], compiledQueries[i]));
-        }
-        return result;
+        return getResult(queries[0], compiledQueries[0], queryCompiler);
     }
 
     private Result query(String query) {
@@ -71,26 +67,30 @@ public class Index implements TruffleObject {
             throw new GpJSONException("You can't operate on a freed index");
         QueryCompiler queryCompiler = new QueryCompiler(new String[] {query});
         JSONPathQuery compiledQuery = queryCompiler.getCompiledQueries()[0];
-        Result result = new Result();
-        result.addQuery(getResult(query, compiledQuery));
-        return result;
+        return getResult(query, compiledQuery, queryCompiler);
     }
 
-    private ResultQuery getResult(String query, JSONPathQuery compiledQuery) {
-        ResultQuery result;
+    private Result getResult(String query, JSONPathQuery compiledQuery, QueryCompiler queryCompiler) {
+        Result result = new Result();
         if (compiledQuery != null) {
             QueryExecutor[] queryExecutor = new QueryExecutor[numPartitions];
             for (int i=0; i < numPartitions; i++) {
-                queryExecutor[i] = new QueryExecutor(cu, kernels, dataBuilder[i], indexBuilder[i], compiledQuery);
+                queryExecutor[i] = new QueryExecutor(cu, kernels, dataBuilder[i], indexBuilder[i], queryCompiler);
             }
-            result = new ResultGPJSONQuery();
+
             for (int i=0; i < numPartitions; i++) {
-                ((ResultGPJSONQuery) result).addPartition(queryExecutor[i].copyBuildResultArray(), dataBuilder[i].getFileBuffer(), indexBuilder[i].getNumLines());
+                int[][][] indexes = queryExecutor[i].copyBuildResultArray();
+                for (int[][] index : indexes) {
+                    ResultGPJSONQuery resultQuery = new ResultGPJSONQuery();
+                    resultQuery.addPartition(index, dataBuilder[i].getFileBuffer(), indexBuilder[i].getNumLines());
+                    result.addQuery(resultQuery);
+                }
                 queryExecutor[i].free();
             }
             LOGGER.log(Level.FINE, query + " executed successfully");
         } else {
-            result = new ResultFallbackQuery(FallbackQueryExecutor.fallbackQuery(dataBuilder[0].getFileName(), query));
+            ResultFallbackQuery resultQuery = new ResultFallbackQuery(FallbackQueryExecutor.fallbackQuery(dataBuilder[0].getFileName(), query));
+            result.addQuery(resultQuery);
             LOGGER.log(Level.FINE, query + " executed successfully (cpu fallback)");
         }
         return result;

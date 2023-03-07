@@ -12,6 +12,8 @@ import static it.necst.gpjson.GpJSONLogger.GPJSON_LOGGER;
 public class QueryCompiler {
     private final JSONPathQuery[] compiledQueries;
     private int maxDepth = 1;
+    private int totalSize = 0;
+    private int totalNumResults = 0;
 
     private static final TruffleLogger LOGGER = GpJSONLogger.getLogger(GPJSON_LOGGER);
 
@@ -23,8 +25,24 @@ public class QueryCompiler {
         return compiledQueries;
     }
 
+    public JSONPathQuery getCompiledQuery(int index) {
+        return compiledQueries[index];
+    }
+
     public int getMaxDepth() {
         return maxDepth;
+    }
+
+    public int getNumQueries() {
+        return compiledQueries.length;
+    }
+
+    public int getTotalSize() {
+        return totalSize;
+    }
+
+    public int getTotalNumResults() {
+        return totalNumResults;
     }
 
     private JSONPathQuery[] compile(String[] queries) {
@@ -33,6 +51,8 @@ public class QueryCompiler {
             try {
                 compiledQueries[i] = new JSONPathParser(new JSONPathScanner(queries[i])).compile();
                 maxDepth = Math.max(maxDepth, compiledQueries[i].getMaxDepth());
+                totalSize += compiledQueries[i].getIr().size();
+                totalNumResults += compiledQueries[i].getNumResults();
             } catch (UnsupportedJSONPathException e) {
                 LOGGER.log(Level.FINE, "Unsupported JSONPath query '" + queries[i] + "'. Falling back to cpu execution.");
                 compiledQueries[i] = null;
