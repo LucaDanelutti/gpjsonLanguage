@@ -13,3 +13,7 @@ component/gpjson-component.jar
 *.nvvp
 
 *.dot
+
+test/package.json
+test/package-lock.json
+test/node_modules
