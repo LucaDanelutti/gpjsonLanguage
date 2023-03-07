@@ -93,14 +93,18 @@ __global__ void executeQuery(char *file, long n, long *newlineIndex, long newlin
           case OPCODE_STORE_RESULT: {
             assert(numResultsIndex < numResults);
             // If we are storing a result, we are not in a string, so we can safely skip all whitespace
-            // to find the start of the actual value
+            // to find the start and the end of the actual value
+            long endStr = levelEnd[currentLevel]; 
             while(file[lineIndex] == ' ' && lineIndex < levelEnd[currentLevel]) {
               lineIndex++;
+            }
+            while(file[endStr-1] == ' ' && endStr > lineIndex) {
+              endStr--;
             }
 
             int resultIndex = resultBase + fileIndex*2*numResults + numResultsIndex*2;
             result[resultIndex] = lineIndex;
-            result[resultIndex+1] = levelEnd[currentLevel];
+            result[resultIndex+1] = endStr;
             assert(result[resultIndex] <= result[resultIndex+1]);
             numResultsIndex++;
             break;
@@ -201,8 +205,11 @@ __global__ void executeQuery(char *file, long n, long *newlineIndex, long newlin
             }
             index = index | (b << i);
 
-            if (file[lineIndex] == '[') {
-              currIndex[currentLevel] = 0;
+            if (file[lineIndex] == '[' || file[lineIndex] == ',') {
+              if (file[lineIndex] == '[')
+                currIndex[currentLevel] = 0;
+              else 
+                currIndex[currentLevel]++;
 
               searchIndex:
               lineIndex++;
