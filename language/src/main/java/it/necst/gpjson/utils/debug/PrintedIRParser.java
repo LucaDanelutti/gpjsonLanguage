@@ -1,4 +1,7 @@
-package it.necst.gpjson.jsonpath;
+package it.necst.gpjson.utils.debug;
+
+import it.necst.gpjson.jsonpath.IRBuilder;
+import it.necst.gpjson.jsonpath.JSONPathQuery;
 
 import java.util.Arrays;
 import java.util.Scanner;

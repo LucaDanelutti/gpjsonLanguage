@@ -1,4 +1,6 @@
-package it.necst.gpjson.jsonpath;
+package it.necst.gpjson.utils.debug;
+
+import it.necst.gpjson.jsonpath.IRByteInputBuffer;
 
 import java.nio.ByteBuffer;
 

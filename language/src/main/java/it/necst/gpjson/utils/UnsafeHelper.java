@@ -1,4 +1,4 @@
-package it.necst.gpjson.engine;
+package it.necst.gpjson.utils;
 
 import sun.misc.Unsafe;
 

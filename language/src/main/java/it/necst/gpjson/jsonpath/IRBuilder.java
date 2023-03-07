@@ -19,14 +19,12 @@ public class IRBuilder {
     public IRBuilder property(String name) {
         buffer.writeOpcode(Opcode.MOVE_TO_KEY);
         buffer.writeString(name);
-
         return this;
     }
 
     public IRBuilder index(int index) {
         buffer.writeOpcode(Opcode.MOVE_TO_INDEX);
         buffer.writeVarInt(index);
-
         return this;
     }
 
@@ -39,25 +37,19 @@ public class IRBuilder {
 
     public IRBuilder down() {
         buffer.writeOpcode(Opcode.MOVE_DOWN);
-
         currentLevel++;
-
         return this;
     }
 
     public IRBuilder up() {
         buffer.writeOpcode(Opcode.MOVE_UP);
-
         currentLevel--;
-
         return this;
     }
 
     public IRBuilder storeResult() {
         buffer.writeOpcode(Opcode.STORE_RESULT);
-
         numResultStores++;
-
         return this;
     }
 
@@ -68,7 +60,6 @@ public class IRBuilder {
 
         ended = true;
         buffer.writeOpcode(Opcode.END);
-
         return this;
     }
 
@@ -95,7 +86,6 @@ public class IRBuilder {
         if (!ended) {
             throw new IllegalStateException("Cannot convert to byte array until end() has been called");
         }
-
         return buffer.toByteArray();
     }
 }

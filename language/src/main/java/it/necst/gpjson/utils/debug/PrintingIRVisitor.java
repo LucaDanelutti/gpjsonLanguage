@@ -1,4 +1,4 @@
-package it.necst.gpjson.jsonpath;
+package it.necst.gpjson.utils.debug;
 
 import java.io.PrintStream;
 

@@ -1,4 +1,4 @@
-package it.necst.gpjson;
+package it.necst.gpjson.utils;
 
 public class Pair<K, V> {
     private K key;
