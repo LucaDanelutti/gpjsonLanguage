@@ -71,7 +71,7 @@ public class IndexBuilder {
     }
 
     public void free() {
-        if (!isIntermediateFreed) {
+        if (!isFreed) {
             newlineIndexMemory.invokeMember("free");
             stringIndexMemory.invokeMember("free");
             leveledBitmapsIndexMemory.invokeMember("free");
