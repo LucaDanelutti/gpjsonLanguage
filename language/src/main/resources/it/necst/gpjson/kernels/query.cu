@@ -216,15 +216,15 @@ __global__ void executeQuery(char *file, long n, long *newlineIndex, long newlin
           }
           index = index | (b << i);
 
-          if (file[lineIndex] == '[' || file[lineIndex] == ',') {
+          if (file[lineIndex] == '[' || file[lineIndex] == ',' || file[lineIndex] == ']') {
             if (file[lineIndex] == '[')
               currIndex[currentLevel] = 0;
             else
               currIndex[currentLevel]++;
 
             searchIndex:
-            lineIndex++;
             if (currIndex[currentLevel] < index) {
+              lineIndex++;
               lineIndex = findNextStructuralChar(leveledBitmapsIndex, levelEnd[currentLevel], lineIndex, currentLevel, levelSize);
               assert(file[lineIndex] == ',' || file[lineIndex] == ']');
               if (file[lineIndex] == ',') {
@@ -233,6 +233,14 @@ __global__ void executeQuery(char *file, long n, long *newlineIndex, long newlin
               } else {
                 goto nextLine;
               }
+            } else if (currIndex[currentLevel] > index) {
+              lineIndex--;
+              lineIndex = findPreviousStructuralChar(leveledBitmapsIndex, 0, lineIndex, currentLevel, levelSize);
+              assert(file[lineIndex] == ',' || file[lineIndex] == '[');
+              currIndex[currentLevel]--;
+              goto searchIndex;
+            } else {
+              lineIndex++;
             }
           } else {
             goto nextLine;
