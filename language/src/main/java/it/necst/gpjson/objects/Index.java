@@ -70,29 +70,39 @@ public class Index implements TruffleObject {
         if (isFreed())
             throw new GpJSONException("You can't operate on a freed index");
         QueryCompiler queryCompiler = new QueryCompiler(new String[] {query});
-        JSONPathQuery compiledQuery = queryCompiler.getCompiledQueries()[0];
-        Result result = new Result();
-        result.addQuery(doQuery(query, compiledQuery));
-        return result;
+        return query(new String[] {query}, queryCompiler.getCompiledQueries());
     }
 
     private ResultQuery doQuery(String query, JSONPathQuery compiledQuery) {
         ResultQuery result;
         if (compiledQuery != null) {
-            QueryExecutor[] queryExecutor = new QueryExecutor[numPartitions];
-            for (int i=0; i < numPartitions; i++) {
-                indexBuilder[i].intermediateFree();
-                queryExecutor[i] = new QueryExecutor(cu, kernels, dataBuilder[i], indexBuilder[i], compiledQuery);
-            }
-            result = new ResultGPJSONQuery();
-            for (int i=0; i < numPartitions; i++) {
-                ((ResultGPJSONQuery) result).addPartition(queryExecutor[i].copyBuildResultArray(), dataBuilder[i].getFileBuffer(), indexBuilder[i].getNumLines());
-                queryExecutor[i].free();
-            }
+            result = doGPJSONQuery(compiledQuery);
             LOGGER.log(Level.FINE, query + " executed successfully");
         } else {
             result = new ResultFallbackQuery(FallbackQueryExecutor.fallbackQuery(dataBuilder[0].getFileName(), query));
             LOGGER.log(Level.FINE, query + " executed successfully (cpu fallback)");
+        }
+        return result;
+    }
+
+    private ResultQuery doGPJSONQuery(JSONPathQuery compiledQuery) {
+        ResultGPJSONQuery result;
+        result = new ResultGPJSONQuery();
+        QueryExecutor[] queryExecutor = new QueryExecutor[numPartitions];
+        int stride = 10;
+        for (int s=0; s < numPartitions/10 + 1; s++) {
+            int strideStart = s * stride;
+            int strideEnd = Math.min((s+1) * stride, numPartitions);
+            for (int i=strideStart; i < strideEnd; i++) {
+                indexBuilder[i].intermediateFree();
+                queryExecutor[i] = new QueryExecutor(cu, kernels, dataBuilder[i], indexBuilder[i], compiledQuery);
+                LOGGER.log(Level.FINER,  "Partition: " + i + ": queried successfully");
+            }
+            for (int i=strideStart; i < strideEnd; i++) {
+                result.addPartition(queryExecutor[i].copyBuildResultArray(), dataBuilder[i].getFileBuffer(), indexBuilder[i].getNumLines());
+                queryExecutor[i].free();
+                LOGGER.log(Level.FINER,  "Partition: " + i + ": results fetched successfully");
+            }
         }
         return result;
     }
