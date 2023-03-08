@@ -61,7 +61,7 @@ public class Index implements TruffleObject {
             throw new GpJSONException("You can't operate on a freed index");
         Result result = new Result();
         for (int i=0; i < queries.length; i++) {
-            result.addQuery(getResult(queries[i], compiledQueries[i]));
+            result.addQuery(doQuery(queries[i], compiledQueries[i]));
         }
         return result;
     }
@@ -72,11 +72,11 @@ public class Index implements TruffleObject {
         QueryCompiler queryCompiler = new QueryCompiler(new String[] {query});
         JSONPathQuery compiledQuery = queryCompiler.getCompiledQueries()[0];
         Result result = new Result();
-        result.addQuery(getResult(query, compiledQuery));
+        result.addQuery(doQuery(query, compiledQuery));
         return result;
     }
 
-    private ResultQuery getResult(String query, JSONPathQuery compiledQuery) {
+    private ResultQuery doQuery(String query, JSONPathQuery compiledQuery) {
         ResultQuery result;
         if (compiledQuery != null) {
             QueryExecutor[] queryExecutor = new QueryExecutor[numPartitions];
