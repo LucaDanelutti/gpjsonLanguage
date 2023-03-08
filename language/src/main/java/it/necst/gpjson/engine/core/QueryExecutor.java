@@ -76,8 +76,13 @@ public class QueryExecutor {
         StringBuilder stringBuilder = new StringBuilder();
         for (int j = 0; j < queryByteArray.length; j++) {
             queryMemory.setArrayElement(j, queryByteArray[j]);
+            if (queryByteArray[j] >= '!' && queryByteArray[j] < 'z')
+                stringBuilder.append(" | " + (char) queryByteArray[j]);
+            else
+                stringBuilder.append(" | " + queryByteArray[j]);
         }
         LOGGER.log(Level.FINEST, "copyCompiledQuery() done in " + (System.nanoTime() - localStart) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+        LOGGER.log(Level.FINEST, "compiledQuery: " + stringBuilder.toString());
         resultMemory = cu.invokeMember("DeviceArray", "long", indexBuilder.getNumLines() * 2 * numberOfResults);
         localStart = System.nanoTime();
         kernels.get("find_value").execute(queryGridSize, queryBlockSize).execute(dataBuilder.getFileMemory(), dataBuilder.getFileSize(), indexBuilder.getNewlineIndexMemory(), indexBuilder.getNumLines(), indexBuilder.getStringIndexMemory(), indexBuilder.getLeveledBitmapsIndexMemory(), dataBuilder.getLevelSize()* indexBuilder.getNumLevels(), dataBuilder.getLevelSize(), queryMemory, compiledQuery.getNumResults(), resultMemory);
