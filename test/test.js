@@ -11,10 +11,13 @@ let DEBUG = true;
 
 test("$.store.book[1].price");
 // test("$.store.book[-1].price");
+// test("$.store.book[-3].price");
 test("$.store.book[0,2].category");
 test("$.store.book[2,0].category");
 test("$.store.book[2,1].category");
 // test("$.store.book[2,2,2].category");
+test("$.store.book[:3].category");
+test("$.store.book[-3:].category");
 test("$.store.book[3].category");
 test("$.store.bicycle.color");
 test("$.store.name");
