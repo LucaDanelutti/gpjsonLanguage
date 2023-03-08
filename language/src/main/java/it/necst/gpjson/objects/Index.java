@@ -81,6 +81,7 @@ public class Index implements TruffleObject {
         if (compiledQuery != null) {
             QueryExecutor[] queryExecutor = new QueryExecutor[numPartitions];
             for (int i=0; i < numPartitions; i++) {
+                indexBuilder[i].intermediateFree();
                 queryExecutor[i] = new QueryExecutor(cu, kernels, dataBuilder[i], indexBuilder[i], compiledQuery);
             }
             result = new ResultGPJSONQuery();

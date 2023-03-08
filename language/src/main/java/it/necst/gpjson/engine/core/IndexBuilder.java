@@ -1,6 +1,7 @@
 package it.necst.gpjson.engine.core;
 
 import com.oracle.truffle.api.TruffleLogger;
+import it.necst.gpjson.GpJSONInternalException;
 import org.graalvm.polyglot.Value;
 import it.necst.gpjson.GpJSONLogger;
 
@@ -40,6 +41,9 @@ public class IndexBuilder {
     private Value carryIndexMemoryWithOffset;
     private Value charSumBase;
 
+    private boolean isIntermediateFreed = false;
+    private boolean isFreed = false;
+
     public IndexBuilder(Value cu, Map<String, Value> kernels, DataBuilder dataBuilder, boolean combined, int numLevels) {
         this.cu = cu;
         this.kernels = kernels;
@@ -49,41 +53,66 @@ public class IndexBuilder {
         this.build();
     }
 
+    public void intermediateFree() {
+        if (!isIntermediateFreed) {
+            stringCarryIndexMemory.invokeMember("free");
+            newlineCountIndexMemory.invokeMember("free");
+            newlineIndexOffset.invokeMember("free");
+            intSumBase.invokeMember("free");
+            escapeIndexMemory.invokeMember("free");
+            xorBase.invokeMember("free");
+
+            carryIndexMemory.invokeMember("free");
+            carryIndexMemoryWithOffset.invokeMember("free");
+            charSumBase.invokeMember("free");
+
+            isIntermediateFreed = true;
+        }
+    }
+
     public void free() {
-        stringCarryIndexMemory.invokeMember("free");
-        newlineCountIndexMemory.invokeMember("free");
-        newlineIndexOffset.invokeMember("free");
-        intSumBase.invokeMember("free");
-        escapeIndexMemory.invokeMember("free");
-        xorBase.invokeMember("free");
+        if (!isIntermediateFreed) {
+            newlineIndexMemory.invokeMember("free");
+            stringIndexMemory.invokeMember("free");
+            leveledBitmapsIndexMemory.invokeMember("free");
 
-        carryIndexMemory.invokeMember("free");
-        carryIndexMemoryWithOffset.invokeMember("free");
-        charSumBase.invokeMember("free");
-
-        newlineIndexMemory.invokeMember("free");
-        stringIndexMemory.invokeMember("free");
-        leveledBitmapsIndexMemory.invokeMember("free");
+            isFreed = true;
+        }
     }
 
     public Value getNewlineIndexMemory() {
-        return newlineIndexMemory;
+        if (!isFreed)
+            return newlineIndexMemory;
+        else
+            throw new GpJSONInternalException("Index already freed!");
     }
 
     public Value getStringIndexMemory() {
-        return stringIndexMemory;
+        if (!isFreed)
+            return stringIndexMemory;
+        else
+            throw new GpJSONInternalException("Index already freed!");
     }
 
     public Value getLeveledBitmapsIndexMemory() {
-        return leveledBitmapsIndexMemory;
+        if (!isFreed)
+            return leveledBitmapsIndexMemory;
+        else
+            throw new GpJSONInternalException("Index already freed!");
     }
 
     public long getNumLevels() {
-        return numLevels;
+        if (!isFreed)
+            return numLevels;
+        else
+            throw new GpJSONInternalException("Index already freed!");
     }
 
     public int getNumLines() {
-        return numLines;
+        if (!isFreed)
+            return numLines;
+        else
+            throw new GpJSONInternalException("Index already freed!");
     }
 
     private void build() {
