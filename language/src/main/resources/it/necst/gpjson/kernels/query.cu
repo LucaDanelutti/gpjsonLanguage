@@ -7,8 +7,8 @@
 #define OPCODE_MOVE_DOWN 0x03
 #define OPCODE_MOVE_TO_KEY 0x04
 #define OPCODE_MOVE_TO_INDEX 0x05
-#define OPCODE_EXPRESSION_STRING_EQUALS 0x06
-#define OPCODE_MOVE_TO_INDEX_REVERSE 0x07
+#define OPCODE_MOVE_TO_INDEX_REVERSE 0x06
+#define OPCODE_EXPRESSION_STRING_EQUALS 0x07
 
 __device__ int findNextStructuralChar(long *extIndex, int levelEnd, int lineIndex, int currentLevel, int levelSize) {
   long index = extIndex[levelSize * currentLevel + lineIndex / 64];
@@ -19,6 +19,21 @@ __device__ int findNextStructuralChar(long *extIndex, int levelEnd, int lineInde
   bool isStructural = (index & (1L << lineIndex % 64)) != 0;
   while (!isStructural && lineIndex < levelEnd) {
     lineIndex++;
+    index = extIndex[levelSize * currentLevel + lineIndex / 64];
+    isStructural = (index & (1L << lineIndex % 64)) != 0;
+  }
+  return lineIndex;
+}
+
+__device__ int findPreviousStructuralChar(long *extIndex, int levelStart, int lineIndex, int currentLevel, int levelSize) {
+  long index = extIndex[levelSize * currentLevel + lineIndex / 64];
+  while (index == 0 && lineIndex > levelStart) {
+    lineIndex -= 64 - (lineIndex % 64);
+    index = extIndex[levelSize * currentLevel + lineIndex / 64];
+  }
+  bool isStructural = (index & (1L << lineIndex % 64)) != 0;
+  while (!isStructural && lineIndex > levelStart) {
+    lineIndex--;
     index = extIndex[levelSize * currentLevel + lineIndex / 64];
     isStructural = (index & (1L << lineIndex % 64)) != 0;
   }
@@ -218,6 +233,48 @@ __global__ void executeQuery(char *file, long n, long *newlineIndex, long newlin
               } else {
                 goto nextLine;
               }
+            }
+          } else {
+            goto nextLine;
+          }
+          break;
+        }
+
+        case OPCODE_MOVE_TO_INDEX_REVERSE: {
+          index = 0;
+
+          int i = 0;
+          int b;
+          while (((b = query[queryPos++]) & 0x80) != 0) {
+            index |= (b & 0x7F) << i;
+            i += 7;
+            assert(i <= 35);
+          }
+          index = index | (b << i);
+
+          lineIndex = levelEnd[currentLevel]-1;
+          while (file[lineIndex] == ' ') {
+            lineIndex--;
+          }
+          if (file[lineIndex] == ']' || file[lineIndex] == ',') {
+            if (file[lineIndex] == ']')
+              currIndex[currentLevel] = 0;
+            else
+              currIndex[currentLevel]++;
+
+            searchIndexReverse:
+            if (currIndex[currentLevel] < index) {
+              lineIndex--;
+              lineIndex = findPreviousStructuralChar(leveledBitmapsIndex, 0, lineIndex, currentLevel, levelSize);
+              assert(file[lineIndex] == ',' || file[lineIndex] == '[');
+              if (file[lineIndex] == ',') {
+                currIndex[currentLevel]++;
+                goto searchIndexReverse;
+              } else {
+                goto nextLine;
+              }
+            } else {
+              lineIndex++;
             }
           } else {
             goto nextLine;

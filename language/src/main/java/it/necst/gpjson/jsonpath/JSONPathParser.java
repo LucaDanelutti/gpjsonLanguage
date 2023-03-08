@@ -100,6 +100,18 @@ public class JSONPathParser {
             } else {
                 throw scanner.errorNext("Unexpected character in index, expected an integer");
             }
+        } else if (scanner.peek() == '-') {
+            scanner.expectChar('-');
+            if (scanner.peek() >= '0' && scanner.peek() <= '9') {
+                int index = readInteger(c -> c == ']');
+                if (index == 0)
+                    throw scanner.error("Invalid reverse index 0");
+                createReverseIndexIR(index);
+            } else if (scanner.peek() == '-') {
+                throw scanner.unsupportedNext("Unsupported last n elements of the array query");
+            } else {
+                throw scanner.errorNext("Unexpected character in index, expected an integer");
+            }
         } else if (scanner.peek() == '*') {
             throw scanner.unsupportedNext("Unsupported wildcard expression");
         } else if (scanner.peek() == '?') {
@@ -185,6 +197,12 @@ public class JSONPathParser {
 
     private void createIndexIR(int index) {
         ir.index(index);
+        ir.down();
+        maxLevel++;
+    }
+
+    private void createReverseIndexIR(int index) {
+        ir.reverseIndex(index);
         ir.down();
         maxLevel++;
     }

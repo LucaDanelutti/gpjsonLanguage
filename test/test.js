@@ -10,6 +10,7 @@ engine.buildKernels();
 let DEBUG = true;
 
 test("$.store.book[1].price");
+// test("$.store.book[-1].price");
 test("$.store.book[0,2].category");
 test("$.store.book[10].category");
 test("$.store.bicycle.color");
