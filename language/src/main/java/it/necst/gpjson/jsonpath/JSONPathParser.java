@@ -36,7 +36,11 @@ public class JSONPathParser {
             case '[':
                 compileIndexExpression();
                 break;
+            case ' ':
+                // go back to compileFilterExpression()
+                return;
             default:
+                System.out.println("HOLA");
                 throw scanner.unsupportedNext("Unsupported expression type");
         }
     }
@@ -184,22 +188,23 @@ public class JSONPathParser {
         scanner.expectChar('?');
         scanner.expectChar('(');
         scanner.expectChar('@');
-        while (scanner.skipIfChar(' ')) {
-            // Skip whitespace
+        ir.mark();
+        compileNextExpression();
+        while (scanner.peek() == ' ') {
+            scanner.skipIfChar(' ');
         }
-        switch (scanner.peek()) {
-            case '=':
-                scanner.expectChar('=');
-                scanner.expectChar('=');
-                while (scanner.skipIfChar(' ')) {
-                    // Skip whitespace
-                }
-                String equalTo = readQuotedString();
-                ir.expressionStringEquals(equalTo);
-                break;
-            default:
-                throw scanner.unsupportedNext("Unsupported character for expression");
+        if (scanner.peek() == '=') {
+            scanner.expectChar('=');
+            scanner.expectChar('=');
+            while (scanner.peek() == ' ') {
+                scanner.skipIfChar(' ');
+            }
+            String equalTo = readQuotedString();
+            ir.expressionStringEquals(equalTo);
+        } else {
+            throw scanner.unsupportedNext("Unsupported character for expression");
         }
+        ir.reset();
         scanner.expectChar(')');
     }
 
@@ -225,9 +230,7 @@ public class JSONPathParser {
         int startPosition = scanner.position();
         while (scanner.hasNext()) {
             char c = scanner.peek();
-            if (c == ' ') {
-                throw scanner.errorNext("Unexpected space");
-            } else if (c == '.' || c == '[') {
+            if (c == '.' || c == '[' || c == ' ') {
                 break;
             }
             scanner.next();

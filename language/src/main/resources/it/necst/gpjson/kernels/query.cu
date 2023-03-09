@@ -8,7 +8,9 @@
 #define OPCODE_MOVE_TO_KEY 0x04
 #define OPCODE_MOVE_TO_INDEX 0x05
 #define OPCODE_MOVE_TO_INDEX_REVERSE 0x06
-#define OPCODE_EXPRESSION_STRING_EQUALS 0x07
+#define OPCODE_MARK_POSITION 0x07
+#define OPCODE_RESET_POSITION 0x08
+#define OPCODE_EXPRESSION_STRING_EQUALS 0x09
 
 __device__ int findNextStructuralChar(long *extIndex, int levelEnd, int lineIndex, int currentLevel, int levelSize) {
   long index = extIndex[levelSize * currentLevel + lineIndex / 64];
@@ -83,6 +85,10 @@ __global__ void executeQuery(char *file, long n, long *newlineIndex, long newlin
     for (int j = 1; j < MAX_NUM_LEVELS; j++) {
       levelEnd[j] = -1;
     }
+
+    int markedPos[MAX_NUM_LEVELS];
+    int markedPosLevel[MAX_NUM_LEVELS];
+    int markedPosIndex = -1;
 
     int numResultsIndex = 0;
 
@@ -292,6 +298,24 @@ __global__ void executeQuery(char *file, long n, long *newlineIndex, long newlin
             }
           } else {
             goto nextLine;
+          }
+          break;
+        }
+        case OPCODE_MARK_POSITION: {
+          assert(markedPosIndex++ < MAX_NUM_LEVELS);
+          markedPos[markedPosIndex] = lineIndex;
+          markedPosLevel[markedPosIndex] = currentLevel;
+          break;
+        }
+        case OPCODE_RESET_POSITION: {
+          assert(markedPosIndex >= 0);
+          lineIndex = markedPos[markedPosIndex];
+          currentLevel = markedPosLevel[markedPosIndex];
+          markedPosIndex--;
+          for (int i=currentLevel+1; i<MAX_NUM_LEVELS; i++) {
+            if (levelEnd[i] == -1)
+              break;
+            levelEnd[i] = -1;
           }
           break;
         }

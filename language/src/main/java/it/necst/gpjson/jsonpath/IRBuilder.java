@@ -46,6 +46,16 @@ public class IRBuilder {
         return this;
     }
 
+    public IRBuilder mark() {
+        buffer.writeOpcode(Opcode.MARK_POSITION);
+        return this;
+    }
+
+    public IRBuilder reset() {
+        buffer.writeOpcode(Opcode.RESET_POSITION);
+        return this;
+    }
+
     public IRBuilder storeResult() {
         buffer.writeOpcode(Opcode.STORE_RESULT);
         numResultStores++;
