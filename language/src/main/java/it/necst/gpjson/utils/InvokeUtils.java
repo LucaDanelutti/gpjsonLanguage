@@ -1,4 +1,4 @@
-package it.necst.gpjson.objects;
+package it.necst.gpjson.utils;
 
 import com.oracle.truffle.api.CompilerAsserts;
 import com.oracle.truffle.api.CompilerDirectives;

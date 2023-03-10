@@ -14,7 +14,7 @@ import it.necst.gpjson.jsonpath.JSONPathQuery;
 import it.necst.gpjson.kernel.GpJSONKernel;
 import it.necst.gpjson.objects.File;
 import it.necst.gpjson.objects.Index;
-import it.necst.gpjson.objects.InvokeUtils;
+import it.necst.gpjson.utils.InvokeUtils;
 import it.necst.gpjson.objects.Result;
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.Value;

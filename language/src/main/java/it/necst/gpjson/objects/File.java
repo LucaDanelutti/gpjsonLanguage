@@ -9,6 +9,7 @@ import it.necst.gpjson.GpJSONException;
 import it.necst.gpjson.GpJSONLogger;
 import it.necst.gpjson.engine.core.DataBuilder;
 import it.necst.gpjson.engine.core.IndexBuilder;
+import it.necst.gpjson.utils.InvokeUtils;
 import org.graalvm.polyglot.Value;
 
 import java.util.Arrays;
