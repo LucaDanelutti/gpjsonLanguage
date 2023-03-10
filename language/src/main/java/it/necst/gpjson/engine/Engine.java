@@ -70,14 +70,18 @@ public class Engine implements TruffleObject {
                     if (inputStream != null) {
                         String code;
                         byte[] targetArray = new byte[inputStream.available()];
-                        if (inputStream.read(targetArray) <= 0)
+                        if (inputStream.read(targetArray) <= 0) {
+                            CompilerDirectives.transferToInterpreter();
                             throw new GpJSONInternalException("error reading from " + kernel.getFilename());
+                        }
                         code = new String(targetArray, StandardCharsets.UTF_8);
                         kernels.put(kernel.getName(), cu.invokeMember("buildkernel", code, kernel.getParameterSignature()));
                     } else {
+                        CompilerDirectives.transferToInterpreter();
                         throw new GpJSONInternalException("file not found " + kernel.getFilename());
                     }
                 } catch (IOException e) {
+                    CompilerDirectives.transferToInterpreter();
                     throw new GpJSONInternalException("cannot read from " + kernel.getFilename());
                 }
             }
@@ -130,12 +134,14 @@ public class Engine implements TruffleObject {
         switch (member) {
             case BUILDKERNELS:
                 if (arguments.length != 0) {
+                    CompilerDirectives.transferToInterpreter();
                     throw new GpJSONException(BUILDKERNELS + " function requires 0 arguments");
                 }
                 this.buildKernels();
                 return this;
             case QUERY: {
                 if ((arguments.length != 4)) {
+                    CompilerDirectives.transferToInterpreter();
                     throw new GpJSONException(QUERY + " function requires 4 arguments");
                 }
                 String file = InvokeUtils.expectString(arguments[0], "argument 1 of " + QUERY + " must be a string");
@@ -146,6 +152,7 @@ public class Engine implements TruffleObject {
             }
             case LOAD:
                 if ((arguments.length != 2)) {
+                    CompilerDirectives.transferToInterpreter();
                     throw new GpJSONException(LOAD + " function requires 4 arguments");
                 }
                 String fileName = InvokeUtils.expectString(arguments[0], "argument 1 of " + LOAD + " must be a string");
@@ -155,6 +162,7 @@ public class Engine implements TruffleObject {
                 polyglot.close();
                 return this;
             default:
+                CompilerDirectives.transferToInterpreter();
                 throw UnknownIdentifierException.create(member);
         }
     }

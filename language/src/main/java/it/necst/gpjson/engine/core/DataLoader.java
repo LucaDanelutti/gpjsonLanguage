@@ -1,5 +1,6 @@
 package it.necst.gpjson.engine.core;
 
+import com.oracle.truffle.api.CompilerDirectives;
 import com.oracle.truffle.api.TruffleLogger;
 import it.necst.gpjson.GpJSONException;
 import it.necst.gpjson.GpJSONLogger;
@@ -55,10 +56,12 @@ public class DataLoader {
         try {
             fileSize = Files.size(file);
         } catch (IOException e) {
+            CompilerDirectives.transferToInterpreter();
             throw new GpJSONException("Failed to get file size");
         }
         try (FileChannel channel = FileChannel.open(file)) {
             if (channel.size() != fileSize) {
+                CompilerDirectives.transferToInterpreter();
                 throw new GpJSONException("Size of file has changed while reading");
             }
             List<Long> partitions = new ArrayList<>();
@@ -81,6 +84,7 @@ public class DataLoader {
                 dataBuilder[i] = new DataBuilder(cu, fileName, fileBuffer[i], endIndex-startIndex);
             }
         } catch (IOException e) {
+            CompilerDirectives.transferToInterpreter();
             throw new GpJSONException("Failed to open file");
         }
         cu.invokeMember("cudaSetDevice", 0);
@@ -93,14 +97,18 @@ public class DataLoader {
         Path filePath = Paths.get(fileName);
         try {
             fileSize = Files.size(filePath);
-            if (fileSize > Integer.MAX_VALUE)
+            if (fileSize > Integer.MAX_VALUE) {
+                CompilerDirectives.transferToInterpreter();
                 throw new GpJSONException("Block mode cannot process files > 2GB");
+            }
         } catch (IOException e) {
+            CompilerDirectives.transferToInterpreter();
             throw new GpJSONException("Failed to get file size");
         }
         MappedByteBuffer fileBuffer;
         try (FileChannel channel = FileChannel.open(filePath)) {
             if (channel.size() != fileSize) {
+                CompilerDirectives.transferToInterpreter();
                 throw new GpJSONException("Size of file has changed while reading");
             }
             long localStart = System.nanoTime();
@@ -108,6 +116,7 @@ public class DataLoader {
             fileBuffer.load();
             LOGGER.log(Level.FINEST, "loadChannel() done in " + (System.nanoTime() - localStart) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         } catch (IOException e) {
+            CompilerDirectives.transferToInterpreter();
             throw new GpJSONException("Failed to open file");
         }
         DataBuilder dataBuilder = new DataBuilder(cu, fileName, fileBuffer, fileSize);
@@ -123,12 +132,14 @@ public class DataLoader {
             try {
                 channel.read(dest, prevPartition + partitionSize + offset);
             } catch (IOException e) {
+                CompilerDirectives.transferToInterpreter();
                 throw new GpJSONException("Failed to read from file");
             }
             if (dest.get(0) == '\n')
                 return prevPartition + partitionSize + offset + 1; //we want the first character, not the newline
             offset--;
         }
+        CompilerDirectives.transferToInterpreter();
         throw new GpJSONException("Cannot partition file");
     }
 }

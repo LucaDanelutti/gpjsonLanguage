@@ -1,13 +1,14 @@
 package it.necst.gpjson.engine.core;
 
+import com.oracle.truffle.api.CompilerDirectives;
 import com.oracle.truffle.api.TruffleLogger;
 import it.necst.gpjson.GpJSONInternalException;
+import it.necst.gpjson.GpJSONLogger;
 import it.necst.gpjson.GpJSONOptionMap;
 import org.graalvm.polyglot.Value;
-import it.necst.gpjson.GpJSONLogger;
 
-import java.util.concurrent.TimeUnit;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 
 import static it.necst.gpjson.GpJSONLogger.GPJSON_LOGGER;
@@ -84,36 +85,46 @@ public class IndexBuilder {
     public Value getNewlineIndexMemory() {
         if (!isFreed)
             return newlineIndexMemory;
-        else
+        else {
+            CompilerDirectives.transferToInterpreter();
             throw new GpJSONInternalException("Index already freed!");
+        }
     }
 
     public Value getStringIndexMemory() {
         if (!isFreed)
             return stringIndexMemory;
-        else
+        else {
+            CompilerDirectives.transferToInterpreter();
             throw new GpJSONInternalException("Index already freed!");
+        }
     }
 
     public Value getLeveledBitmapsIndexMemory() {
         if (!isFreed)
             return leveledBitmapsIndexMemory;
-        else
+        else {
+            CompilerDirectives.transferToInterpreter();
             throw new GpJSONInternalException("Index already freed!");
+        }
     }
 
     public long getNumLevels() {
         if (!isFreed)
             return numLevels;
-        else
+        else {
+            CompilerDirectives.transferToInterpreter();
             throw new GpJSONInternalException("Index already freed!");
+        }
     }
 
     public int getNumLines() {
         if (!isFreed)
             return numLines;
-        else
+        else {
+            CompilerDirectives.transferToInterpreter();
             throw new GpJSONInternalException("Index already freed!");
+        }
     }
 
     private void build() {

@@ -57,8 +57,10 @@ public class Index implements TruffleObject {
     }
 
     public Result query(String[] queries, JSONPathQuery[] compiledQueries) {
-        if (isFreed())
+        if (isFreed()) {
+            CompilerDirectives.transferToInterpreter();
             throw new GpJSONException("You can't operate on a freed index");
+        }
         Result result = new Result();
         for (int i=0; i < queries.length; i++) {
             result.addQuery(doQuery(queries[i], compiledQueries[i]));
@@ -67,8 +69,10 @@ public class Index implements TruffleObject {
     }
 
     private Result query(String query) {
-        if (isFreed())
+        if (isFreed()) {
+            CompilerDirectives.transferToInterpreter();
             throw new GpJSONException("You can't operate on a freed index");
+        }
         QueryCompiler queryCompiler = new QueryCompiler(new String[] {query});
         return query(new String[] {query}, queryCompiler.getCompiledQueries());
     }
@@ -134,6 +138,7 @@ public class Index implements TruffleObject {
         switch (member) {
             case QUERY:
                 if ((arguments.length != 1)) {
+                    CompilerDirectives.transferToInterpreter();
                     throw new GpJSONException(QUERY + " function requires 1 arguments");
                 }
                 String query = InvokeUtils.expectString(arguments[0], "argument 1 of " + QUERY + " must be a string");

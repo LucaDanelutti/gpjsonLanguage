@@ -50,8 +50,10 @@ public class File implements TruffleObject {
     }
 
     public Index index(int depth, boolean combined) {
-        if (isFreed())
+        if (isFreed()) {
+            CompilerDirectives.transferToInterpreter();
             throw new GpJSONException("You can't operate on a freed file");
+        }
         IndexBuilder[] indexBuilder = new IndexBuilder[numPartitions];
         for (int i=0; i < numPartitions; i++) {
             indexBuilder[i] = new IndexBuilder(cu, kernels, dataBuilder[i], combined, depth);
@@ -86,6 +88,7 @@ public class File implements TruffleObject {
         switch (member) {
             case INDEX:
                 if ((arguments.length != 2)) {
+                    CompilerDirectives.transferToInterpreter();
                     throw new GpJSONException(INDEX + " function requires 2 arguments");
                 }
                 int depth = InvokeUtils.expectInt(arguments[0], "argument 1 of " + INDEX + " must be an int");
@@ -95,6 +98,7 @@ public class File implements TruffleObject {
                 free();
                 return this;
             default:
+                CompilerDirectives.transferToInterpreter();
                 throw UnknownIdentifierException.create(member);
         }
     }

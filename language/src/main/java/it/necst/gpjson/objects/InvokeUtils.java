@@ -1,6 +1,7 @@
 package it.necst.gpjson.objects;
 
 import com.oracle.truffle.api.CompilerAsserts;
+import com.oracle.truffle.api.CompilerDirectives;
 import com.oracle.truffle.api.interop.InteropLibrary;
 import com.oracle.truffle.api.interop.InvalidArrayIndexException;
 import com.oracle.truffle.api.interop.UnsupportedMessageException;
@@ -49,7 +50,8 @@ public class InvokeUtils {
         } catch (UnsupportedMessageException e) {
             throw UnsupportedTypeException.create(new Object[]{argument}, errorMessage);
         } catch (InvalidArrayIndexException e) {
-            throw new GpJSONInternalException("unexpected behavior");
+            CompilerDirectives.transferToInterpreter();
+            throw new GpJSONInternalException("Unexpected behavior");
         }
         return res;
     }

@@ -1,18 +1,18 @@
 package it.necst.gpjson.engine.core;
 
 import com.jayway.jsonpath.*;
-
+import com.oracle.truffle.api.CompilerDirectives;
 import it.necst.gpjson.GpJSONException;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import java.util.Collections;
 
 public class FallbackQueryExecutor {
     public static List<List<String>> fallbackQuery(String fileName, String query) {
@@ -34,6 +34,7 @@ public class FallbackQueryExecutor {
                 return result;
             }).collect(Collectors.toList());
         } catch (IOException e) {
+            CompilerDirectives.transferToInterpreter();
             throw new GpJSONException("Failed to read file");
         }
     }
