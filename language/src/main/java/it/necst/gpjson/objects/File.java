@@ -2,10 +2,7 @@ package it.necst.gpjson.objects;
 
 import com.oracle.truffle.api.CompilerDirectives;
 import com.oracle.truffle.api.TruffleLogger;
-import com.oracle.truffle.api.interop.InteropLibrary;
-import com.oracle.truffle.api.interop.TruffleObject;
-import com.oracle.truffle.api.interop.UnknownIdentifierException;
-import com.oracle.truffle.api.interop.UnsupportedTypeException;
+import com.oracle.truffle.api.interop.*;
 import com.oracle.truffle.api.library.ExportLibrary;
 import com.oracle.truffle.api.library.ExportMessage;
 import it.necst.gpjson.GpJSONException;
@@ -84,17 +81,21 @@ public class File implements TruffleObject {
     }
 
     @ExportMessage
-    public Object invokeMember(String member, Object[] arguments) throws UnknownIdentifierException, UnsupportedTypeException {
+    public Object invokeMember(String member, Object[] arguments) throws UnknownIdentifierException, UnsupportedTypeException, ArityException {
         switch (member) {
             case INDEX:
                 if ((arguments.length != 2)) {
                     CompilerDirectives.transferToInterpreter();
-                    throw new GpJSONException(INDEX + " function requires 2 arguments");
+                    throw ArityException.create(2, 2, arguments.length);
                 }
                 int depth = InvokeUtils.expectInt(arguments[0], "argument 1 of " + INDEX + " must be an int");
                 boolean combined = InvokeUtils.expectBoolean(arguments[1], "argument 2 of " + INDEX + " must be a boolean");
                 return index(depth, combined);
             case FREE:
+                if ((arguments.length != 0)) {
+                    CompilerDirectives.transferToInterpreter();
+                    throw ArityException.create(0, 0, arguments.length);
+                }
                 free();
                 return this;
             default:

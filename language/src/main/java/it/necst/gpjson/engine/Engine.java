@@ -2,23 +2,19 @@ package it.necst.gpjson.engine;
 
 import com.oracle.truffle.api.CompilerDirectives;
 import com.oracle.truffle.api.TruffleLogger;
-import com.oracle.truffle.api.interop.InteropLibrary;
-import com.oracle.truffle.api.interop.TruffleObject;
-import com.oracle.truffle.api.interop.UnknownIdentifierException;
-import com.oracle.truffle.api.interop.UnsupportedTypeException;
+import com.oracle.truffle.api.interop.*;
 import com.oracle.truffle.api.library.ExportLibrary;
 import com.oracle.truffle.api.library.ExportMessage;
-import it.necst.gpjson.GpJSONException;
 import it.necst.gpjson.GpJSONInternalException;
 import it.necst.gpjson.GpJSONLogger;
 import it.necst.gpjson.GpJSONOptionMap;
-import it.necst.gpjson.objects.InvokeUtils;
 import it.necst.gpjson.engine.core.DataLoader;
 import it.necst.gpjson.engine.core.QueryCompiler;
 import it.necst.gpjson.jsonpath.JSONPathQuery;
 import it.necst.gpjson.kernel.GpJSONKernel;
 import it.necst.gpjson.objects.File;
 import it.necst.gpjson.objects.Index;
+import it.necst.gpjson.objects.InvokeUtils;
 import it.necst.gpjson.objects.Result;
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.Value;
@@ -130,19 +126,19 @@ public class Engine implements TruffleObject {
     }
 
     @ExportMessage
-    public Object invokeMember(String member, Object[] arguments) throws UnknownIdentifierException, UnsupportedTypeException {
+    public Object invokeMember(String member, Object[] arguments) throws UnknownIdentifierException, UnsupportedTypeException, ArityException {
         switch (member) {
             case BUILDKERNELS:
                 if (arguments.length != 0) {
                     CompilerDirectives.transferToInterpreter();
-                    throw new GpJSONException(BUILDKERNELS + " function requires 0 arguments");
+                    throw ArityException.create(0, 0, arguments.length);
                 }
                 this.buildKernels();
                 return this;
             case QUERY: {
                 if ((arguments.length != 4)) {
                     CompilerDirectives.transferToInterpreter();
-                    throw new GpJSONException(QUERY + " function requires 4 arguments");
+                    throw ArityException.create(4, 4, arguments.length);
                 }
                 String file = InvokeUtils.expectString(arguments[0], "argument 1 of " + QUERY + " must be a string");
                 String[] queries = InvokeUtils.expectStringArray(arguments[1], "argument 2 of " + QUERY + " must be an array of strings");
@@ -153,12 +149,16 @@ public class Engine implements TruffleObject {
             case LOAD:
                 if ((arguments.length != 2)) {
                     CompilerDirectives.transferToInterpreter();
-                    throw new GpJSONException(LOAD + " function requires 4 arguments");
+                    throw ArityException.create(2, 2, arguments.length);
                 }
                 String fileName = InvokeUtils.expectString(arguments[0], "argument 1 of " + LOAD + " must be a string");
                 boolean batched = InvokeUtils.expectBoolean(arguments[1], "argument 2 of " + LOAD + " must be a boolean");
                 return this.load(fileName, batched);
             case CLOSE:
+                if ((arguments.length != 0)) {
+                    CompilerDirectives.transferToInterpreter();
+                    throw ArityException.create(0, 0, arguments.length);
+                }
                 polyglot.close();
                 return this;
             default:

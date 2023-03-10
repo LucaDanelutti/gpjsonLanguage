@@ -2,19 +2,12 @@ package it.necst.gpjson.objects;
 
 import com.oracle.truffle.api.CompilerDirectives;
 import com.oracle.truffle.api.TruffleLogger;
-import com.oracle.truffle.api.interop.InteropLibrary;
-import com.oracle.truffle.api.interop.TruffleObject;
-import com.oracle.truffle.api.interop.UnknownIdentifierException;
-import com.oracle.truffle.api.interop.UnsupportedTypeException;
+import com.oracle.truffle.api.interop.*;
 import com.oracle.truffle.api.library.ExportLibrary;
 import com.oracle.truffle.api.library.ExportMessage;
 import it.necst.gpjson.GpJSONException;
 import it.necst.gpjson.GpJSONLogger;
-import it.necst.gpjson.engine.core.FallbackQueryExecutor;
-import it.necst.gpjson.engine.core.DataBuilder;
-import it.necst.gpjson.engine.core.IndexBuilder;
-import it.necst.gpjson.engine.core.QueryCompiler;
-import it.necst.gpjson.engine.core.QueryExecutor;
+import it.necst.gpjson.engine.core.*;
 import it.necst.gpjson.jsonpath.JSONPathQuery;
 import org.graalvm.polyglot.Value;
 
@@ -134,16 +127,20 @@ public class Index implements TruffleObject {
     }
 
     @ExportMessage
-    public Object invokeMember(String member, Object[] arguments) throws UnknownIdentifierException, UnsupportedTypeException {
+    public Object invokeMember(String member, Object[] arguments) throws UnknownIdentifierException, UnsupportedTypeException, ArityException {
         switch (member) {
             case QUERY:
                 if ((arguments.length != 1)) {
                     CompilerDirectives.transferToInterpreter();
-                    throw new GpJSONException(QUERY + " function requires 1 arguments");
+                    throw ArityException.create(1, 1, arguments.length);
                 }
                 String query = InvokeUtils.expectString(arguments[0], "argument 1 of " + QUERY + " must be a string");
                 return query(query);
             case FREE:
+                if ((arguments.length != 0)) {
+                    CompilerDirectives.transferToInterpreter();
+                    throw ArityException.create(0, 0, arguments.length);
+                }
                 free();
                 return this;
             default:
