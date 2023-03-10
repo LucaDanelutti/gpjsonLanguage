@@ -11,6 +11,7 @@ import com.oracle.truffle.api.library.ExportMessage;
 import it.necst.gpjson.GpJSONException;
 import it.necst.gpjson.GpJSONInternalException;
 import it.necst.gpjson.GpJSONLogger;
+import it.necst.gpjson.GpJSONOptionMap;
 import it.necst.gpjson.objects.InvokeUtils;
 import it.necst.gpjson.engine.core.DataLoader;
 import it.necst.gpjson.engine.core.QueryCompiler;
@@ -44,31 +45,16 @@ public class Engine implements TruffleObject {
     private final Value cu;
     Map<String,Value> kernels = new HashMap<>();
 
-    private final int numGPUs = 2;
-    private final int partitionSize = (int) (1 * Math.pow(2, 30));
+    private final int partitionSize = GpJSONOptionMap.getPartitionSize();
 
     private static final TruffleLogger LOGGER = GpJSONLogger.getLogger(GPJSON_LOGGER);
 
-    public Engine() {
+    public Engine(Map<String,String> grCUDAOptions) {
         polyglot = Context
                 .newBuilder()
                 .allowAllAccess(true)
                 .allowExperimentalOptions(true)
-                .option("grcuda.ExecutionPolicy", "async")
-                .option("grcuda.InputPrefetch", "true")
-                .option("grcuda.RetrieveNewStreamPolicy", "always-new") // always-new, reuse
-                .option("grcuda.RetrieveParentStreamPolicy", "multigpu-disjoint") // same-as-parent, disjoint, multigpu-early-disjoint, multigpu-disjoint
-                .option("grcuda.DependencyPolicy", "with-const")
-                .option("grcuda.DeviceSelectionPolicy", "min-transfer-size")
-                .option("grcuda.ForceStreamAttach", "false")
-                .option("grcuda.EnableComputationTimers", "false")
-                .option("grcuda.MemAdvisePolicy", "none") // none, read-mostly, preferred
-                .option("grcuda.NumberOfGPUs", Integer.toString(numGPUs))
-                // DAG
-                .option("grcuda.ExportDAG", "./dag")
-                // logging settings
-                .option("log.grcuda.com.nvidia.grcuda.level", "FINER")
-                // .option("log.grcuda.com.nvidia.grcuda.runtime.executioncontext.level", "FINEST")
+                .options(grCUDAOptions)
                 .build();
         LOGGER.log(Level.FINE, "grcuda context created");
         cu = polyglot.eval("grcuda", "CU");

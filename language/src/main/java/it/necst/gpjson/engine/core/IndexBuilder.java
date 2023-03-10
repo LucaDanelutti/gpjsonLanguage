@@ -2,6 +2,7 @@ package it.necst.gpjson.engine.core;
 
 import com.oracle.truffle.api.TruffleLogger;
 import it.necst.gpjson.GpJSONInternalException;
+import it.necst.gpjson.GpJSONOptionMap;
 import org.graalvm.polyglot.Value;
 import it.necst.gpjson.GpJSONLogger;
 
@@ -14,8 +15,8 @@ import static it.necst.gpjson.GpJSONLogger.GPJSON_LOGGER;
 public class IndexBuilder {
     private final Value cu;
     private final Map<String,Value> kernels;
-    private final int gridSize = 1024*16;
-    private final int blockSize = 1024;
+    private final int gridSize = GpJSONOptionMap.getIndexBuilderGridSize();
+    private final int blockSize = GpJSONOptionMap.getIndexBuilderBlockSize();
     private final int reductionGridSize = 32;
     private final int reductionBlockSize = 32;
 

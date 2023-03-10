@@ -1,5 +1,6 @@
 package it.necst.gpjson.engine.core;
 
+import it.necst.gpjson.GpJSONOptionMap;
 import it.necst.gpjson.utils.UnsafeHelper;
 import it.necst.gpjson.jsonpath.JSONPathQuery;
 import com.oracle.truffle.api.TruffleLogger;
@@ -15,8 +16,8 @@ import static it.necst.gpjson.GpJSONLogger.GPJSON_LOGGER;
 public class QueryExecutor {
     private final Value cu;
     private final Map<String,Value> kernels;
-    private final int queryGridSize = 512;
-    private final int queryBlockSize = 1024;
+    private final int gridSize = GpJSONOptionMap.getQueryExecutorGridSize();
+    private final int blockSize = GpJSONOptionMap.getQueryExecutorBlockSize();
 
     private Value resultMemory;
 
@@ -85,7 +86,7 @@ public class QueryExecutor {
         LOGGER.log(Level.FINEST, "compiledQuery: " + stringBuilder.toString());
         resultMemory = cu.invokeMember("DeviceArray", "long", indexBuilder.getNumLines() * 2 * numberOfResults);
         localStart = System.nanoTime();
-        kernels.get("find_value").execute(queryGridSize, queryBlockSize).execute(dataBuilder.getFileMemory(), dataBuilder.getFileSize(), indexBuilder.getNewlineIndexMemory(), indexBuilder.getNumLines(), indexBuilder.getStringIndexMemory(), indexBuilder.getLeveledBitmapsIndexMemory(), dataBuilder.getLevelSize()* indexBuilder.getNumLevels(), dataBuilder.getLevelSize(), queryMemory, compiledQuery.getNumResults(), resultMemory);
+        kernels.get("find_value").execute(gridSize, blockSize).execute(dataBuilder.getFileMemory(), dataBuilder.getFileSize(), indexBuilder.getNewlineIndexMemory(), indexBuilder.getNumLines(), indexBuilder.getStringIndexMemory(), indexBuilder.getLeveledBitmapsIndexMemory(), dataBuilder.getLevelSize()* indexBuilder.getNumLevels(), dataBuilder.getLevelSize(), queryMemory, compiledQuery.getNumResults(), resultMemory);
         LOGGER.log(Level.FINEST, "find_value() done in " + (System.nanoTime() - localStart) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         LOGGER.log(Level.FINER, "query() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
     }

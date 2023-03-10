@@ -37,7 +37,7 @@ public class QueryCompiler {
                 LOGGER.log(Level.FINE, "Unsupported JSONPath query '" + queries[i] + "'. Falling back to cpu execution.");
                 compiledQueries[i] = null;
             } catch (JSONPathException e) {
-                throw new GpJSONException("Error parsing query: " + queries[i]);
+                throw new GpJSONException("Error parsing query: " + queries[i] + ". " + e.getMessage());
             }
         }
         return compiledQueries;
