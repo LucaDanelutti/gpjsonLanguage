@@ -16,6 +16,7 @@ public class InvokeUtils {
         try {
             return INTEROP.asString(argument);
         } catch (UnsupportedMessageException e) {
+            CompilerDirectives.transferToInterpreter();
             throw UnsupportedTypeException.create(new Object[]{argument}, errorMessage);
         }
     }
@@ -25,6 +26,7 @@ public class InvokeUtils {
         try {
             return INTEROP.asInt(argument);
         } catch (UnsupportedMessageException e) {
+            CompilerDirectives.transferToInterpreter();
             throw UnsupportedTypeException.create(new Object[]{argument}, errorMessage);
         }
     }
@@ -34,6 +36,7 @@ public class InvokeUtils {
         try {
             return INTEROP.asBoolean(argument);
         } catch (UnsupportedMessageException e) {
+            CompilerDirectives.transferToInterpreter();
             throw UnsupportedTypeException.create(new Object[]{argument}, errorMessage);
         }
     }
@@ -48,6 +51,7 @@ public class InvokeUtils {
                 res[i] = INTEROP.asString(INTEROP.readArrayElement(argument, i));
             }
         } catch (UnsupportedMessageException e) {
+            CompilerDirectives.transferToInterpreter();
             throw UnsupportedTypeException.create(new Object[]{argument}, errorMessage);
         } catch (InvalidArrayIndexException e) {
             CompilerDirectives.transferToInterpreter();

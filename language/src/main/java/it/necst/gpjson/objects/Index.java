@@ -144,6 +144,7 @@ public class Index implements TruffleObject {
                 free();
                 return this;
             default:
+                CompilerDirectives.transferToInterpreter();
                 throw UnknownIdentifierException.create(member);
         }
     }
