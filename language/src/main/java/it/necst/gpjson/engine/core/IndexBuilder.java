@@ -5,8 +5,11 @@ import com.oracle.truffle.api.TruffleLogger;
 import it.necst.gpjson.GpJSONInternalException;
 import it.necst.gpjson.GpJSONLogger;
 import it.necst.gpjson.GpJSONOptionMap;
+import it.necst.gpjson.engine.disk.SavedIndexBuilder;
+import it.necst.gpjson.utils.UnsafeHelper;
 import org.graalvm.polyglot.Value;
 
+import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
@@ -26,7 +29,6 @@ public class IndexBuilder {
     private Value leveledBitmapsIndexMemory;
     private final long numLevels;
     private int numLines;
-    private final boolean combined;
 
     private final DataBuilder dataBuilder;
 
@@ -50,9 +52,18 @@ public class IndexBuilder {
         this.cu = cu;
         this.kernels = kernels;
         this.dataBuilder = dataBuilder;
-        this.combined = combined;
         this.numLevels = numLevels;
-        this.build();
+        this.build(combined);
+    }
+
+    public IndexBuilder(Value cu, Map<String, Value> kernels, DataBuilder dataBuilder, SavedIndexBuilder index) {
+        this.cu = cu;
+        this.kernels = kernels;
+        this.dataBuilder = dataBuilder;
+        this.numLevels = index.getNumLevels();
+        this.numLines = index.getNumLines();
+        this.load(index);
+        this.isIntermediateFreed = true;
     }
 
     public void intermediateFree() {
@@ -127,17 +138,51 @@ public class IndexBuilder {
         }
     }
 
-    private void build() {
+    private void load(SavedIndexBuilder index) {
+        long start = System.nanoTime();
+        newlineIndexMemory = byteArrayToDeviceArray(index.getNewlineIndexMemory());
+        stringIndexMemory = byteArrayToDeviceArray(index.getStringIndexMemory());
+        leveledBitmapsIndexMemory = byteArrayToDeviceArray(index.getLeveledBitmapsIndexMemory());
+        LOGGER.log(Level.FINER, "load index done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+    }
+
+    public SavedIndexBuilder save() {
+        long start = System.nanoTime();
+        byte[] newlineIndex = deviceArrayToByteArray(newlineIndexMemory);
+        byte[] stringIndex = deviceArrayToByteArray(stringIndexMemory);
+        byte[] leveledBitmapsIndex = deviceArrayToByteArray(leveledBitmapsIndexMemory);
+        LOGGER.log(Level.FINER, "save index done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+        return new SavedIndexBuilder(newlineIndex, stringIndex, leveledBitmapsIndex, numLevels, numLines);
+    }
+
+    private Value byteArrayToDeviceArray(byte[] byteArray) {
+        Value deviceArray = cu.invokeMember("DeviceArray", "long", byteArray.length / 8);
+        ByteBuffer byteBuffer = ByteBuffer.allocateDirect(byteArray.length);
+        byteBuffer.put(byteArray);
+        byteBuffer.position(0);
+        deviceArray.invokeMember("copyFrom", UnsafeHelper.createLongArray(byteBuffer.asLongBuffer()).getAddress());
+        return deviceArray;
+    }
+
+    private byte[] deviceArrayToByteArray(Value deviceArray) {
+        ByteBuffer byteBuffer = ByteBuffer.allocateDirect((int) deviceArray.getArraySize() * 8);
+        deviceArray.invokeMember("copyTo", UnsafeHelper.createLongArray(byteBuffer.asLongBuffer()).getAddress());
+        byte[] byteArray = new byte[byteBuffer.remaining()];
+        byteBuffer.get(byteArray);
+        return byteArray;
+    }
+
+    private void build(boolean combined) {
         long start;
         start = System.nanoTime();
-        this.createNewlineStringIndex();
+        this.createNewlineStringIndex(combined);
         LOGGER.log(Level.FINER, "createNewlineStringIndex() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         start = System.nanoTime();
         this.createLeveledBitmapsIndex();
         LOGGER.log(Level.FINER, "createLeveledBitmapsIndex() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
     }
 
-    private void createNewlineStringIndex() {
+    private void createNewlineStringIndex(boolean combined) {
         long start;
         stringIndexMemory = cu.invokeMember("DeviceArray", "long", dataBuilder.getLevelSize());
         stringCarryIndexMemory = cu.invokeMember("DeviceArray", "char", gridSize * blockSize);

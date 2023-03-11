@@ -5,6 +5,7 @@ import sun.misc.Unsafe;
 import java.lang.reflect.Field;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
+import java.nio.LongBuffer;
 
 public class UnsafeHelper {
     private static final Unsafe unsafe;
@@ -68,6 +69,11 @@ public class UnsafeHelper {
             this.numElements = numElements;
         }
 
+        LongArray(long address, int numElements) {
+            super(address);
+            this.numElements = numElements;
+        }
+
         public long getValueAt(long index) {
             if ((index < 0) || (index >= numElements)) {
                 throw new IllegalArgumentException(index + " is out of range");
@@ -89,7 +95,11 @@ public class UnsafeHelper {
 
     public static ByteArray createByteArray(ByteBuffer byteBuffer) {
         long address = unsafe.getLong(byteBuffer, bufferAddressOffset);
-
         return new ByteArray(address, byteBuffer.capacity());
+    }
+
+    public static LongArray createLongArray(LongBuffer longBuffer) {
+        long address = unsafe.getLong(longBuffer, bufferAddressOffset);
+        return new LongArray(address, longBuffer.capacity());
     }
 }

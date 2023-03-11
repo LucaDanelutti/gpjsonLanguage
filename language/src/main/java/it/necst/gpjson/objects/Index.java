@@ -7,8 +7,12 @@ import com.oracle.truffle.api.library.ExportLibrary;
 import com.oracle.truffle.api.library.ExportMessage;
 import it.necst.gpjson.GpJSONException;
 import it.necst.gpjson.GpJSONLogger;
+import it.necst.gpjson.GpJSONOptionMap;
 import it.necst.gpjson.engine.core.*;
+import it.necst.gpjson.engine.disk.SavedIndex;
+import it.necst.gpjson.engine.disk.SavedIndexBuilder;
 import it.necst.gpjson.jsonpath.JSONPathQuery;
+import it.necst.gpjson.utils.HashHelper;
 import it.necst.gpjson.utils.InvokeUtils;
 import org.graalvm.polyglot.Value;
 
@@ -24,8 +28,9 @@ import static it.necst.gpjson.GpJSONLogger.GPJSON_LOGGER;
 public class Index implements TruffleObject {
     private static final String QUERY = "query";
     private static final String FREE = "free";
+    private static final String SAVE = "save";
 
-    private static final Set<String> MEMBERS = new HashSet<>(Arrays.asList(QUERY, FREE));
+    private static final Set<String> MEMBERS = new HashSet<>(Arrays.asList(QUERY, FREE, SAVE));
 
     private final Value cu;
     private final Map<String,Value> kernels;
@@ -42,6 +47,18 @@ public class Index implements TruffleObject {
         this.dataBuilder = dataBuilder;
         this.indexBuilder = indexBuilder;
         this.numPartitions = numPartitions;
+    }
+
+    public Index(Value cu, Map<String, Value> kernels, DataBuilder[] dataBuilder, SavedIndexBuilder[] savedIndexBuilders, int numPartitions) {
+        this.cu = cu;
+        this.kernels = kernels;
+        this.dataBuilder = dataBuilder;
+        this.numPartitions = numPartitions;
+
+        this.indexBuilder = new IndexBuilder[numPartitions];
+        for (int i = 0; i < numPartitions; i++) {
+            indexBuilder[i] = new IndexBuilder(cu, kernels, dataBuilder[i], savedIndexBuilders[i]);
+        }
     }
 
     public void free() {
@@ -69,6 +86,15 @@ public class Index implements TruffleObject {
         }
         QueryCompiler queryCompiler = new QueryCompiler(new String[] {query});
         return query(new String[] {query}, queryCompiler.getCompiledQueries());
+    }
+
+    private void save(String fileName) {
+        SavedIndexBuilder[] savedIndexBuilders = new SavedIndexBuilder[numPartitions];
+        for (int i = 0; i < indexBuilder.length; i++) {
+            savedIndexBuilders[i] = indexBuilder[i].save();
+        }
+        SavedIndex savedIndex = new SavedIndex(savedIndexBuilders, GpJSONOptionMap.getPartitionSize(), HashHelper.computeHash(dataBuilder, numPartitions));
+        savedIndex.save(fileName);
     }
 
     private ResultQuery doQuery(String query, JSONPathQuery compiledQuery) {
@@ -143,6 +169,14 @@ public class Index implements TruffleObject {
                     throw ArityException.create(0, 0, arguments.length);
                 }
                 free();
+                return this;
+            case SAVE:
+                if ((arguments.length != 1)) {
+                    CompilerDirectives.transferToInterpreter();
+                    throw ArityException.create(1, 1, arguments.length);
+                }
+                String fileName = InvokeUtils.expectString(arguments[0], "argument 1 of " + SAVE + " must be a string");
+                save(fileName);
                 return this;
             default:
                 CompilerDirectives.transferToInterpreter();

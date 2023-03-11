@@ -5,22 +5,24 @@ import com.oracle.truffle.api.TruffleLogger;
 import com.oracle.truffle.api.interop.*;
 import com.oracle.truffle.api.library.ExportLibrary;
 import com.oracle.truffle.api.library.ExportMessage;
+import it.necst.gpjson.GpJSONException;
 import it.necst.gpjson.GpJSONInternalException;
 import it.necst.gpjson.GpJSONLogger;
 import it.necst.gpjson.GpJSONOptionMap;
 import it.necst.gpjson.engine.core.DataLoader;
 import it.necst.gpjson.engine.core.QueryCompiler;
+import it.necst.gpjson.engine.disk.SavedIndex;
 import it.necst.gpjson.jsonpath.JSONPathQuery;
 import it.necst.gpjson.kernel.GpJSONKernel;
 import it.necst.gpjson.objects.File;
 import it.necst.gpjson.objects.Index;
-import it.necst.gpjson.utils.InvokeUtils;
 import it.necst.gpjson.objects.Result;
+import it.necst.gpjson.utils.HashHelper;
+import it.necst.gpjson.utils.InvokeUtils;
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.Value;
 
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -33,9 +35,10 @@ public class Engine implements TruffleObject {
     private static final String BUILDKERNELS = "buildKernels";
     private static final String QUERY = "query";
     private static final String LOAD = "load";
+    private static final String RESTORE = "restore";
     private static final String CLOSE = "close";
 
-    private static final Set<String> MEMBERS = new HashSet<>(Arrays.asList(BUILDKERNELS, QUERY, LOAD, CLOSE));
+    private static final Set<String> MEMBERS = new HashSet<>(Arrays.asList(BUILDKERNELS, QUERY, LOAD, RESTORE, CLOSE));
 
     private final Context polyglot;
     private final Value cu;
@@ -107,6 +110,18 @@ public class Engine implements TruffleObject {
         return new File(cu, kernels, dataLoader.getDataBuilder(), dataLoader.getNumPartitions());
     }
 
+    private Index restore(String fileName, String indexFileName) {
+        SavedIndex savedIndex = SavedIndex.restore(indexFileName);
+        DataLoader dataLoader = new DataLoader(cu, kernels, fileName, savedIndex.getPartitionSize());
+        String savedHash = savedIndex.getInputFileHash();
+        String fileHash = HashHelper.computeHash(dataLoader.getDataBuilder(), dataLoader.getNumPartitions());
+        if (!savedHash.equals(fileHash)) {
+            CompilerDirectives.transferToInterpreter();
+            throw new GpJSONException("This index does not belong to the provided input file. Saved index input file hash is " + savedHash + ". Provided input file hash is " + fileHash);
+        }
+        return new Index(cu, kernels, dataLoader.getDataBuilder(), savedIndex.getSavedIndexBuilders(), savedIndex.getNumPartitions());
+    }
+
     @ExportMessage
     @SuppressWarnings("static-method")
     public boolean hasMembers() {
@@ -146,14 +161,24 @@ public class Engine implements TruffleObject {
                 boolean batched = InvokeUtils.expectBoolean(arguments[3], "argument 4 of " + QUERY + " must be a boolean");
                 return this.query(file, queries, combined, batched);
             }
-            case LOAD:
+            case LOAD: {
                 if ((arguments.length != 2)) {
                     CompilerDirectives.transferToInterpreter();
                     throw ArityException.create(2, 2, arguments.length);
                 }
-                String fileName = InvokeUtils.expectString(arguments[0], "argument 1 of " + LOAD + " must be a string");
+                String file = InvokeUtils.expectString(arguments[0], "argument 1 of " + LOAD + " must be a string");
                 boolean batched = InvokeUtils.expectBoolean(arguments[1], "argument 2 of " + LOAD + " must be a boolean");
-                return this.load(fileName, batched);
+                return this.load(file, batched);
+            }
+            case RESTORE: {
+                if ((arguments.length != 2)) {
+                    CompilerDirectives.transferToInterpreter();
+                    throw ArityException.create(2, 2, arguments.length);
+                }
+                String file = InvokeUtils.expectString(arguments[0], "argument 1 of " + RESTORE + " must be a string");
+                String index = InvokeUtils.expectString(arguments[1], "argument 2 of " + RESTORE + " must be a string");
+                return restore(file, index);
+            }
             case CLOSE:
                 if ((arguments.length != 0)) {
                     CompilerDirectives.transferToInterpreter();
