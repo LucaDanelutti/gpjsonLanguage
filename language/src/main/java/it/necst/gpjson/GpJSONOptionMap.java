@@ -36,6 +36,10 @@ public class GpJSONOptionMap implements TruffleObject {
         return (Integer) getOptionValueFromOptionKey(GpJSONOptions.PartitionSize);
     }
 
+    public static int getNumberOfGPUs() {
+        return (Integer) getOptionValueFromOptionKey(GrCUDAOptions.NumberOfGPUs);
+    }
+
     public static int getIndexBuilderGridSize() {
         return (Integer) getOptionValueFromOptionKey(GpJSONOptions.IndexBuilderGridSize);
     }

@@ -4,6 +4,7 @@ import com.oracle.truffle.api.CompilerDirectives;
 import com.oracle.truffle.api.TruffleLogger;
 import it.necst.gpjson.GpJSONException;
 import it.necst.gpjson.GpJSONLogger;
+import it.necst.gpjson.GpJSONOptionMap;
 import org.graalvm.polyglot.Value;
 
 import java.io.IOException;
@@ -76,7 +77,7 @@ public class DataLoader {
             MappedByteBuffer[] fileBuffer = new MappedByteBuffer[partitions.size()];
             dataBuilder = new DataBuilder[partitions.size()];
             for (int i=0; i < numPartitions; i++) {
-                cu.invokeMember("cudaSetDevice", i % 2);
+                cu.invokeMember("cudaSetDevice", i % GpJSONOptionMap.getNumberOfGPUs());
                 long startIndex = partitions.get(i);
                 long endIndex = (i == partitions.size()-1) ? fileSize : partitions.get(i+1) - 1; //skip the newline character
                 fileBuffer[i] = channel.map(FileChannel.MapMode.READ_ONLY, startIndex, endIndex-startIndex);
