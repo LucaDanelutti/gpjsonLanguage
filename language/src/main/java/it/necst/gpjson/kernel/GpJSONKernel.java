@@ -22,7 +22,10 @@ public enum GpJSONKernel {
     XOR3("xor3", "xor3(charArr: inout pointer char, n: sint32, base: in pointer char)", "it/necst/gpjson/kernels/xor3.cu"),
     CHAR_SUM1("char_sum1", "sum1(charArr: inout pointer char, n: sint32)", "it/necst/gpjson/kernels/char_sum1.cu"),
     CHAR_SUM2("char_sum2", "sum2(charArr: in pointer char, n: sint32, stride: sint32, startingValue: char, base: out pointer char)", "it/necst/gpjson/kernels/char_sum2.cu"),
-    CHAR_SUM3("char_sum3", "sum3(charArr: in pointer char, n: sint32, base: in pointer char, offset: sint32, charNewArr: out pointer char)", "it/necst/gpjson/kernels/char_sum3.cu");
+    CHAR_SUM3("char_sum3", "sum3(charArr: in pointer char, n: sint32, base: in pointer char, offset: sint32, charNewArr: out pointer char)", "it/necst/gpjson/kernels/char_sum3.cu"),
+    PRE_SCAN("pre_scan", "f(data: inout pointer sint32, n: sint32)", "it/necst/gpjson/kernels/pre_scan.cu"),
+    POST_SCAN("post_scan", "f(data: inout pointer sint32, n: sint32, base: out pointer sint32)", "it/necst/gpjson/kernels/post_scan.cu"),
+    REBASE("rebase", "f(data: in pointer sint32, n: sint32, base: in pointer sint32)", "it/necst/gpjson/kernels/rebase.cu");
 
     private final String name;
     private final String parameterSignature;

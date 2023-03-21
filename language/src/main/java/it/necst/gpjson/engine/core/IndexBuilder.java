@@ -7,6 +7,7 @@ import it.necst.gpjson.GpJSONLogger;
 import it.necst.gpjson.GpJSONOptionMap;
 import it.necst.gpjson.engine.disk.SavedIndexBuilder;
 import it.necst.gpjson.utils.UnsafeHelper;
+import it.necst.gpjson.utils.debug.DebugUtils;
 import org.graalvm.polyglot.Value;
 
 import java.nio.ByteBuffer;
@@ -196,11 +197,29 @@ public class IndexBuilder {
             kernels.get("create_escape_carry_index").execute(gridSize, blockSize).execute(dataBuilder.getFileMemory(), dataBuilder.getFileSize(), stringCarryIndexMemory);
         }
         start = System.nanoTime();
+        int testblockSize = 1024;
+        int testgridSize = gridSize * blockSize / (blockSize * 2);
         newlineIndexOffset = cu.invokeMember("DeviceArray", "int", gridSize * blockSize + 1);
-        intSumBase = cu.invokeMember("DeviceArray", "int", reductionGridSize*reductionBlockSize);
-        kernels.get("int_sum1").execute(reductionGridSize, reductionBlockSize).execute(newlineCountIndexMemory, newlineCountIndexMemory.getArraySize());
-        kernels.get("int_sum2").execute(1, 1).execute(newlineCountIndexMemory, newlineCountIndexMemory.getArraySize(), reductionGridSize*reductionBlockSize, 1, intSumBase);
-        kernels.get("int_sum3").execute(reductionGridSize, reductionBlockSize).execute(newlineCountIndexMemory, newlineCountIndexMemory.getArraySize(), intSumBase, 1, newlineIndexOffset);
+        intSumBase = cu.invokeMember("DeviceArray", "int", testgridSize);
+        Value rid = cu.invokeMember("DeviceArray", "int", 1);
+
+        Value temp = cu.invokeMember("DeviceArray", "int", 16);
+        Value sum = cu.invokeMember("DeviceArray", "int", 1);
+        Value test = cu.invokeMember("DeviceArray", "int", 1024);
+        Value testOffsets = cu.invokeMember("DeviceArray", "int", 1024+1);
+        for (int i=0; i < test.getArraySize(); i++) {
+            test.setArrayElement(i, i);
+        }
+
+        kernels.get("pre_scan").execute(testgridSize, testblockSize, testblockSize*4*2).execute(test, test.getArraySize());
+        kernels.get("post_scan").execute(testgridSize, testblockSize, testblockSize*4*2).execute(test, test.getArraySize(), temp);
+
+        kernels.get("pre_scan").execute(1, testblockSize, testblockSize*4*2).execute(temp, temp.getArraySize());
+        kernels.get("post_scan").execute(1, testblockSize, testblockSize*4*2).execute(temp, temp.getArraySize(), rid);
+
+        kernels.get("rebase").execute(testgridSize, testblockSize).execute(newlineCountIndexMemory, newlineCountIndexMemory.getArraySize(), intSumBase, 1, newlineIndexOffset);
+
+        DebugUtils.printDeviceArray(newlineIndexOffset, "offsets");
         newlineIndexOffset.setArrayElement(0, 1);
         numLines = newlineIndexOffset.getArrayElement(newlineIndexOffset.getArraySize()-1).asInt();
         LOGGER.log(Level.FINEST, "sum() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
