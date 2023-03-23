@@ -42,7 +42,7 @@ __device__ int findPreviousStructuralChar(long *extIndex, int levelStart, int li
   return lineIndex;
 }
 
-__global__ void executeQuery(char *file, long n, long *newlineIndex, long newlineIndexSize, long *stringIndex, long *leveledBitmapsIndex, long levelSize, char *query, int numResults, long *result) {
+__global__ void f(char *file, int fileSize, long *newlineIndex, int newlineIndexSize, long *stringIndex, long *leveledBitmapsIndex, long levelSize, char *query, int numResults, long *result) {
   int index = blockIdx.x * blockDim.x + threadIdx.x;
   int stride = blockDim.x * gridDim.x;
 
@@ -60,7 +60,7 @@ __global__ void executeQuery(char *file, long n, long *newlineIndex, long newlin
 
   for (long fileIndex = start; fileIndex < end && fileIndex < newlineIndexSize; fileIndex += 1) {
     long lineStart = newlineIndex[fileIndex];
-    long lineEnd = (fileIndex + 1 < newlineIndexSize) ? newlineIndex[fileIndex+1] : n;
+    long lineEnd = (fileIndex + 1 < newlineIndexSize) ? newlineIndex[fileIndex+1] : fileSize;
 
     while(file[lineEnd] != '}' && lineEnd > lineStart) {
       lineEnd--;
