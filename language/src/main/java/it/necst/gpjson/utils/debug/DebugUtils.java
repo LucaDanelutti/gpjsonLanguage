@@ -3,7 +3,7 @@ package it.necst.gpjson.utils.debug;
 import org.graalvm.polyglot.Value;
 
 public class DebugUtils {
-    private static void printDeviceArrayBinary(Value deviceArray, String name, int bits) {
+    public static void printDeviceArrayBinary(Value deviceArray, String name, int bits) {
         System.out.println(name + ":b:");
         for (int j=0; j<bits; j++) {
             System.out.print(((j+1) % 10) + "|");
@@ -20,7 +20,7 @@ public class DebugUtils {
         }
     }
 
-    private static void printDeviceArray(Value deviceArray, String name) {
+    public static void printDeviceArray(Value deviceArray, String name) {
         System.out.print(name + ":");
         for (int i=0; i<deviceArray.getArraySize(); i++) {
             System.out.print(deviceArray.getArrayElement(i).asInt() + "|");
