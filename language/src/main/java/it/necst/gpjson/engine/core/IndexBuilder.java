@@ -27,7 +27,7 @@ public class IndexBuilder {
     private Value newlineIndexMemory;
     private Value stringIndexMemory;
     private Value leveledBitmapsIndexMemory;
-    private final long numLevels;
+    private final int numLevels;
     private int numLines;
 
     private final DataBuilder dataBuilder;
@@ -189,62 +189,62 @@ public class IndexBuilder {
         newlineCountIndexMemory = cu.invokeMember("DeviceArray", "int", gridSize * blockSize);
         if (combined) {
             start = System.nanoTime();
-            kernels.get("create_combined_escape_carry_newline_count_index").execute(gridSize, blockSize).execute(dataBuilder.getFileMemory(), dataBuilder.getFileSize(), stringCarryIndexMemory, newlineCountIndexMemory);
-            LOGGER.log(Level.FINEST, "create_combined_escape_carry_newline_count_index() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+            kernels.get("combined-escape-carry-newline-count-index").execute(gridSize, blockSize).execute(dataBuilder.getFileMemory(), dataBuilder.getFileSize(), stringCarryIndexMemory, newlineCountIndexMemory);
+            LOGGER.log(Level.FINEST, "combined-escape-carry-newline-count-index() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         } else {
-            kernels.get("count_newlines").execute(gridSize, blockSize).execute(dataBuilder.getFileMemory(), dataBuilder.getFileSize(), newlineCountIndexMemory);
-            kernels.get("create_escape_carry_index").execute(gridSize, blockSize).execute(dataBuilder.getFileMemory(), dataBuilder.getFileSize(), stringCarryIndexMemory);
+            kernels.get("newline-count-index").execute(gridSize, blockSize).execute(dataBuilder.getFileMemory(), dataBuilder.getFileSize(), newlineCountIndexMemory);
+            kernels.get("escape-carry-index").execute(gridSize, blockSize).execute(dataBuilder.getFileMemory(), dataBuilder.getFileSize(), stringCarryIndexMemory);
         }
         start = System.nanoTime();
         newlineIndexOffset = cu.invokeMember("DeviceArray", "int", gridSize * blockSize + 1);
         intSumBase = cu.invokeMember("DeviceArray", "int", reductionGridSize*reductionBlockSize);
-        kernels.get("int_sum1").execute(reductionGridSize, reductionBlockSize).execute(newlineCountIndexMemory, newlineCountIndexMemory.getArraySize());
-        kernels.get("int_sum2").execute(1, 1).execute(newlineCountIndexMemory, newlineCountIndexMemory.getArraySize(), reductionGridSize*reductionBlockSize, 1, intSumBase);
-        kernels.get("int_sum3").execute(reductionGridSize, reductionBlockSize).execute(newlineCountIndexMemory, newlineCountIndexMemory.getArraySize(), intSumBase, 1, newlineIndexOffset);
+        kernels.get("int-sum-pre-scan").execute(reductionGridSize, reductionBlockSize).execute(newlineCountIndexMemory, newlineCountIndexMemory.getArraySize());
+        kernels.get("int-sum-post-scan").execute(1, 1).execute(newlineCountIndexMemory, newlineCountIndexMemory.getArraySize(), reductionGridSize*reductionBlockSize, 1, intSumBase);
+        kernels.get("int-sum-rebase").execute(reductionGridSize, reductionBlockSize).execute(newlineCountIndexMemory, newlineCountIndexMemory.getArraySize(), intSumBase, 1, newlineIndexOffset);
         newlineIndexOffset.setArrayElement(0, 1);
         numLines = newlineIndexOffset.getArrayElement(newlineIndexOffset.getArraySize()-1).asInt();
-        LOGGER.log(Level.FINEST, "sum() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+        LOGGER.log(Level.FINEST, "partial-sums() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         newlineIndexMemory = cu.invokeMember("DeviceArray", "long", numLines);
         escapeIndexMemory = cu.invokeMember("DeviceArray", "long", dataBuilder.getLevelSize());
         if (combined) {
             start = System.nanoTime();
-            kernels.get("create_combined_escape_newline_index").execute(gridSize, blockSize).execute(dataBuilder.getFileMemory(), dataBuilder.getFileSize(), stringCarryIndexMemory, newlineIndexOffset, escapeIndexMemory, dataBuilder.getLevelSize(), newlineIndexMemory);
-            LOGGER.log(Level.FINEST, "create_combined_escape_newline_index() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+            kernels.get("combined-escape-newline-index").execute(gridSize, blockSize).execute(dataBuilder.getFileMemory(), dataBuilder.getFileSize(), stringCarryIndexMemory, newlineIndexOffset, escapeIndexMemory, newlineIndexMemory);
+            LOGGER.log(Level.FINEST, "combined-escape-newline-index() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         } else {
-            kernels.get("create_escape_index").execute(gridSize, blockSize).execute(dataBuilder.getFileMemory(), dataBuilder.getFileSize(), stringCarryIndexMemory, escapeIndexMemory, dataBuilder.getLevelSize());
-            kernels.get("create_newline_index").execute(gridSize, blockSize).execute(dataBuilder.getFileMemory(), dataBuilder.getFileSize(), newlineIndexOffset, newlineIndexMemory);
+            kernels.get("escape-index").execute(gridSize, blockSize).execute(dataBuilder.getFileMemory(), dataBuilder.getFileSize(), stringCarryIndexMemory, escapeIndexMemory);
+            kernels.get("newline-index").execute(gridSize, blockSize).execute(dataBuilder.getFileMemory(), dataBuilder.getFileSize(), newlineIndexOffset, newlineIndexMemory);
         }
         start = System.nanoTime();
-        kernels.get("create_quote_index").execute(gridSize, blockSize).execute(dataBuilder.getFileMemory(), dataBuilder.getFileSize(), escapeIndexMemory, stringIndexMemory, stringCarryIndexMemory, dataBuilder.getLevelSize());
-        LOGGER.log(Level.FINEST, "create_quote_index() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+        kernels.get("quote-index").execute(gridSize, blockSize).execute(dataBuilder.getFileMemory(), dataBuilder.getFileSize(), escapeIndexMemory, stringIndexMemory, stringCarryIndexMemory);
+        LOGGER.log(Level.FINEST, "quote-index() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         start = System.nanoTime();
         xorBase = cu.invokeMember("DeviceArray", "char", reductionGridSize*reductionBlockSize);
-        kernels.get("xor1").execute(reductionGridSize, reductionBlockSize).execute(stringCarryIndexMemory, stringCarryIndexMemory.getArraySize());
-        kernels.get("xor2").execute(1, 1).execute(stringCarryIndexMemory, stringCarryIndexMemory.getArraySize(), reductionGridSize*reductionBlockSize, xorBase);
-        kernels.get("xor3").execute(reductionGridSize, reductionBlockSize).execute(stringCarryIndexMemory, stringCarryIndexMemory.getArraySize(), xorBase);
-        LOGGER.log(Level.FINEST, "xor() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+        kernels.get("xor-pre-scan").execute(reductionGridSize, reductionBlockSize).execute(stringCarryIndexMemory, stringCarryIndexMemory.getArraySize());
+        kernels.get("xor-post-scan").execute(1, 1).execute(stringCarryIndexMemory, stringCarryIndexMemory.getArraySize(), reductionGridSize*reductionBlockSize, xorBase);
+        kernels.get("xor-rebase").execute(reductionGridSize, reductionBlockSize).execute(stringCarryIndexMemory, stringCarryIndexMemory.getArraySize(), xorBase);
+        LOGGER.log(Level.FINEST, "xor-partial-sums() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         start = System.nanoTime();
-        kernels.get("create_string_index").execute(gridSize, blockSize).execute(dataBuilder.getLevelSize(), stringIndexMemory, stringCarryIndexMemory);
-        LOGGER.log(Level.FINEST, "create_string_index() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+        kernels.get("string-index").execute(gridSize, blockSize).execute(stringIndexMemory, dataBuilder.getLevelSize(), stringCarryIndexMemory);
+        LOGGER.log(Level.FINEST, "string-index() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
     }
 
     private void createLeveledBitmapsIndex() {
         long start;
         carryIndexMemory = cu.invokeMember("DeviceArray", "char", gridSize * blockSize);
         start = System.nanoTime();
-        kernels.get("create_leveled_bitmaps_carry_index").execute(gridSize, blockSize).execute(dataBuilder.getFileMemory(), dataBuilder.getFileSize(), stringIndexMemory, carryIndexMemory);
-        LOGGER.log(Level.FINEST, "create_leveled_bitmaps_carry_index() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+        kernels.get("leveled-bitmaps-carry-index").execute(gridSize, blockSize).execute(dataBuilder.getFileMemory(), dataBuilder.getFileSize(), stringIndexMemory, carryIndexMemory);
+        LOGGER.log(Level.FINEST, "leveled-bitmaps-carry-index() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         start = System.nanoTime();
         carryIndexMemoryWithOffset = cu.invokeMember("DeviceArray", "char", gridSize * blockSize + 1);
         carryIndexMemoryWithOffset.setArrayElement(0, -1);
         charSumBase = cu.invokeMember("DeviceArray", "char", reductionGridSize*reductionBlockSize);
-        kernels.get("char_sum1").execute(reductionGridSize, reductionBlockSize).execute(carryIndexMemory, carryIndexMemory.getArraySize());
-        kernels.get("char_sum2").execute(1, 1).execute(carryIndexMemory, carryIndexMemory.getArraySize(), reductionGridSize*reductionBlockSize, -1, charSumBase);
-        kernels.get("char_sum3").execute(reductionGridSize, reductionBlockSize).execute(carryIndexMemory, carryIndexMemory.getArraySize(), charSumBase, 1, carryIndexMemoryWithOffset);
-        LOGGER.log(Level.FINEST, "sum() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+        kernels.get("char-sum-pre-scan").execute(reductionGridSize, reductionBlockSize).execute(carryIndexMemory, carryIndexMemory.getArraySize());
+        kernels.get("char-sum-post-scan").execute(1, 1).execute(carryIndexMemory, carryIndexMemory.getArraySize(), reductionGridSize*reductionBlockSize, -1, charSumBase);
+        kernels.get("char-sum-rebase").execute(reductionGridSize, reductionBlockSize).execute(carryIndexMemory, carryIndexMemory.getArraySize(), charSumBase, 1, carryIndexMemoryWithOffset);
+        LOGGER.log(Level.FINEST, "partial-sums() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         leveledBitmapsIndexMemory = cu.invokeMember("DeviceArray", "long", dataBuilder.getLevelSize() * numLevels);
         start = System.nanoTime();
-        kernels.get("create_leveled_bitmaps").execute(gridSize, blockSize).execute(dataBuilder.getFileMemory(), dataBuilder.getFileSize(), stringIndexMemory, carryIndexMemoryWithOffset, leveledBitmapsIndexMemory, dataBuilder.getLevelSize() * numLevels, dataBuilder.getLevelSize(), numLevels);
-        LOGGER.log(Level.FINEST, "create_leveled_bitmaps() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+        kernels.get("leveled-bitmaps-index").execute(gridSize, blockSize).execute(dataBuilder.getFileMemory(), dataBuilder.getFileSize(), stringIndexMemory, carryIndexMemoryWithOffset, leveledBitmapsIndexMemory, dataBuilder.getLevelSize(), numLevels);
+        LOGGER.log(Level.FINEST, "leveled-bitmaps-index() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
     }
 }

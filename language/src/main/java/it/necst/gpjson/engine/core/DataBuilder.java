@@ -16,18 +16,18 @@ public class DataBuilder {
     private final String fileName;
     private Value fileMemory;
     private final MappedByteBuffer fileBuffer;
-    private final long fileSize;
-    private final long levelSize;
+    private final int fileSize;
+    private final int levelSize;
 
     private static final TruffleLogger LOGGER = GpJSONLogger.getLogger(GPJSON_LOGGER);
 
-    public DataBuilder(Value cu, String fileName, MappedByteBuffer fileBuffer, long fileSize) {
+    public DataBuilder(Value cu, String fileName, MappedByteBuffer fileBuffer, int fileSize) {
         this.cu = cu;
         this.fileName = fileName;
         this.fileBuffer = fileBuffer;
         this.fileSize = fileSize;
         this.load();
-        this.levelSize = (fileMemory.getArraySize() + 64 - 1) / 64;
+        this.levelSize = (int)(fileMemory.getArraySize() + 64 - 1) / 64;
     }
 
     public void free() {
@@ -38,11 +38,11 @@ public class DataBuilder {
         return fileMemory;
     }
 
-    public long getLevelSize() {
+    public int getLevelSize() {
         return levelSize;
     }
 
-    public long getFileSize() {
+    public int getFileSize() {
         return fileSize;
     }
 

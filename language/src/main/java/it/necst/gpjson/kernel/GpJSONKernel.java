@@ -2,27 +2,27 @@ package it.necst.gpjson.kernel;
 
 public enum GpJSONKernel {
     // Uncombined
-    COUNT_NEWLINES("count_newlines", "count_newlines(file: in pointer char, n: sint64, result: out pointer sint32)", "it/necst/gpjson/kernels/uncombined/count_newlines.cu"),
-    CREATE_NEWLINE_INDEX("create_newline_index", "create_newline_index(file: in pointer char, n: sint64, indices: in pointer sint32, result: out pointer sint64)", "it/necst/gpjson/kernels/uncombined/create_newline_index.cu"),
-    CREATE_ESCAPE_CARRY_INDEX("create_escape_carry_index", "create_escape_carry_index(file: in pointer char, n: sint64, escape_carry_index: out pointer char)", "it/necst/gpjson/kernels/uncombined/create_escape_carry_index.cu"),
-    CREATE_ESCAPE_INDEX("create_escape_index", "create_escape_index(file: in pointer char, n: sint64, escape_carry_index: in pointer char, escape_index: out pointer sint64, escape_index_size: sint64)", "it/necst/gpjson/kernels/uncombined/create_escape_index.cu"),
+    NEWLINE_COUNT_INDEX("newline-count-index", "f(file: in pointer char, fileSize: sint32, newlineCountIndex: out pointer sint32)", "it/necst/gpjson/kernels/uncombined/newline-count-index.cu"),
+    NEWLINE_INDEX("newline-index", "f(file: in pointer char, fileSize: sint32, newlineCountIndex: in pointer sint32, newlineIndex: out pointer sint64)", "it/necst/gpjson/kernels/uncombined/newline-index.cu"),
+    ESCAPE_CARRY_INDEX("escape-carry-index", "f(file: in pointer char, fileSize: sint32, escapeCarryIndex: out pointer char)", "it/necst/gpjson/kernels/uncombined/escape-carry-index.cu"),
+    ESCAPE_INDEX("escape-index", "f(file: in pointer char, fileSize: sint32, escapeCarryIndex: in pointer char, escapeIndex: out pointer sint64)", "it/necst/gpjson/kernels/uncombined/escape-index.cu"),
     // Combined
-    CREATE_QUOTE_INDEX("create_quote_index", "create_quote_index(file: in pointer char, n: sint64, escape_index: in pointer sint64, quote_index: out pointer sint64, quote_carry_index: out pointer char, quote_index_size: sint64)", "it/necst/gpjson/kernels/create_quote_index.cu"),
-    CREATE_STRING_INDEX("create_string_index", "create_string_index(n: sint64, quote_index: out pointer sint64, quote_counts: in pointer char)", "it/necst/gpjson/kernels/create_string_index.cu"),
-    CREATE_LEVELED_BITMAPS_CARRY_INDEX("create_leveled_bitmaps_carry_index", "create_leveled_bitmaps_carry_index(file: in pointer char, n: sint64, string_index: in pointer sint64, level_carry_index: out pointer sint8)", "it/necst/gpjson/kernels/create_leveled_bitmaps_carry_index.cu"),
-    CREATE_LEVELED_BITMAPS("create_leveled_bitmaps", "create_leveled_bitmaps(file: in pointer char, n: sint64, string_index: in pointer sint64, carry_index: in pointer sint8, leveled_bitmaps_index: out pointer sint64, leveled_bitmaps_index_size: sint64, level_size: sint64, num_levels: sint32)", "it/necst/gpjson/kernels/create_leveled_bitmaps.cu"),
-    FIND_VALUE("find_value", "find_value(file: in pointer char, n: sint64, new_line_index: in pointer sint64, new_line_index_size: sint64, string_index: in pointer sint64, leveled_bitmaps_index: in pointer sint64, leveled_bitmaps_index_size: sint64, level_size: sint64, query: in pointer char, result_size: sint32, result: out pointer sint64)", "it/necst/gpjson/kernels/find_value.cu"),
-    CREATE_COMBINED_ESCAPE_CARRY_NEWLINE_COUNT_INDEX("create_combined_escape_carry_newline_count_index", "create_combined_escape_carry_newline_count_index(file: in pointer char, n: sint64, escape_carry_index: out pointer char, newline_count_index: out pointer sint32)", "it/necst/gpjson/kernels/create_combined_escape_carry_newline_count_index.cu"),
-    CREATE_COMBINED_ESCAPE_NEWLINE_INDEX("create_combined_escape_newline_index", "create_combined_escape_newline_index(file: in pointer char, n: sint64, escape_carry_index: in pointer char, newline_count_index: in pointer sint32, escape_index: out pointer sint64, escape_index_size: sint64, newline_index: out pointer sint64)", "it/necst/gpjson/kernels/create_combined_escape_newline_index.cu"),
-    INT_SUM1("int_sum1", "sum1(intArr: inout pointer sint32, n: sint32)", "it/necst/gpjson/kernels/int_sum1.cu"),
-    INT_SUM2("int_sum2", "sum2(intArr: in pointer sint32, n: sint32, stride: sint32, startingValue: sint32, base: out pointer sint32)", "it/necst/gpjson/kernels/int_sum2.cu"),
-    INT_SUM3("int_sum3", "sum3(intArr: in pointer sint32, n: sint32, base: in pointer sint32, offset: sint32, intNewArr: out pointer sint32)", "it/necst/gpjson/kernels/int_sum3.cu"),
-    XOR1("xor1", "xor1(charArr: inout pointer char, n: sint32)", "it/necst/gpjson/kernels/xor1.cu"),
-    XOR2("xor2", "xor2(charArr: in pointer char, n: sint32, stride: sint32, base: out pointer char)", "it/necst/gpjson/kernels/xor2.cu"),
-    XOR3("xor3", "xor3(charArr: inout pointer char, n: sint32, base: in pointer char)", "it/necst/gpjson/kernels/xor3.cu"),
-    CHAR_SUM1("char_sum1", "sum1(charArr: inout pointer char, n: sint32)", "it/necst/gpjson/kernels/char_sum1.cu"),
-    CHAR_SUM2("char_sum2", "sum2(charArr: in pointer char, n: sint32, stride: sint32, startingValue: char, base: out pointer char)", "it/necst/gpjson/kernels/char_sum2.cu"),
-    CHAR_SUM3("char_sum3", "sum3(charArr: in pointer char, n: sint32, base: in pointer char, offset: sint32, charNewArr: out pointer char)", "it/necst/gpjson/kernels/char_sum3.cu");
+    COMBINED_ESCAPE_CARRY_NEWLINE_COUNT_INDEX("combined-escape-carry-newline-count-index", "f(file: in pointer char, fileSize: sint32, escapeCarryIndex: out pointer char, newlineCountIndex: out pointer sint32)", "it/necst/gpjson/kernels/combined-escape-carry-newline-count-index.cu"),
+    INT_SUM_PRE_SCAN("int-sum-pre-scan", "f(intArr: inout pointer sint32, n: sint32)", "it/necst/gpjson/kernels/int-sum-pre-scan.cu"),
+    INT_SUM_POST_SCAN("int-sum-post-scan", "f(intArr: in pointer sint32, n: sint32, stride: sint32, startingValue: sint32, base: out pointer sint32)", "it/necst/gpjson/kernels/int-sum-post-scan.cu"),
+    INT_SUM_REBASE("int-sum-rebase", "f(intArr: in pointer sint32, n: sint32, base: in pointer sint32, offset: sint32, intNewArr: out pointer sint32)", "it/necst/gpjson/kernels/int-sum-rebase.cu"),
+    COMBINED_ESCAPE_NEWLINE_INDEX("combined-escape-newline-index", "f(file: in pointer char, fileSize: sint32, escapeCarryIndex: in pointer char, newlineCountIndex: in pointer sint32, escapeIndex: out pointer sint64, newlineIndex: out pointer sint64)", "it/necst/gpjson/kernels/combined-escape-newline-index.cu"),
+    QUOTE_INDEX("quote-index", "f(file: in pointer char, fileSize: sint32, escapeIndex: in pointer sint64, quoteIndex: out pointer sint64, quoteCarryIndex: out pointer char)", "it/necst/gpjson/kernels/quote-index.cu"),
+    XOR_PRE_SCAN("xor-pre-scan", "f(charArr: inout pointer char, n: sint32)", "it/necst/gpjson/kernels/xor-pre-scan.cu"),
+    XOR_POST_SCAN("xor-post-scan", "f(charArr: in pointer char, n: sint32, stride: sint32, base: out pointer char)", "it/necst/gpjson/kernels/xor-post-scan.cu"),
+    XOR_REBASE("xor-rebase", "f(charArr: inout pointer char, n: sint32, base: in pointer char)", "it/necst/gpjson/kernels/xor-rebase.cu"),
+    STRING_INDEX("string-index", "f(quoteIndex: out pointer sint64, quoteIndexSize: sint32, quoteCarryIndex: in pointer char)", "it/necst/gpjson/kernels/string-index.cu"),
+    LEVELED_BITMAPS_CARRY_INDEX("leveled-bitmaps-carry-index", "f(file: in pointer char, fileSize: sint32, stringIndex: in pointer sint64, leveledBitmapsAuxIndex: out pointer sint8)", "it/necst/gpjson/kernels/leveled-bitmaps-carry-index.cu"),
+    CHAR_SUM_PRE_SCAN("char-sum-pre-scan", "f(charArr: inout pointer char, n: sint32)", "it/necst/gpjson/kernels/char-sum-pre-scan.cu"),
+    CHAR_SUM_POST_SCAN("char-sum-post-scan", "f(charArr: in pointer char, n: sint32, stride: sint32, startingValue: char, base: out pointer char)", "it/necst/gpjson/kernels/char-sum-post-scan.cu"),
+    CHAR_SUM_REBASE("char-sum-rebase", "f(charArr: in pointer char, n: sint32, base: in pointer char, offset: sint32, charNewArr: out pointer char)", "it/necst/gpjson/kernels/char-sum-rebase.cu"),
+    LEVELED_BITMAPS("leveled-bitmaps-index", "f(file: in pointer char, fileSize: sint32, stringIndex: in pointer sint64, leveledBitmapsAuxIndex: in pointer sint8, leveledBitmapsIndex: out pointer sint64, levelSize: sint32, numLevels: sint32)", "it/necst/gpjson/kernels/leveled-bitmaps-index.cu"),
+    QUERY("query", "find_value(file: in pointer char, n: sint64, new_line_index: in pointer sint64, new_line_index_size: sint64, string_index: in pointer sint64, leveled_bitmaps_index: in pointer sint64, leveled_bitmaps_index_size: sint64, level_size: sint64, query: in pointer char, result_size: sint32, result: out pointer sint64)", "it/necst/gpjson/kernels/find_value.cu");
 
     private final String name;
     private final String parameterSignature;

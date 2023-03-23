@@ -6,10 +6,10 @@ public class SavedIndexBuilder implements Serializable {
     private final byte[] newlineIndexMemory;
     private final byte[] stringIndexMemory;
     private final byte[] leveledBitmapsIndexMemory;
-    private final long numLevels;
+    private final int numLevels;
     private final int numLines;
 
-    public SavedIndexBuilder(byte[] newlineIndexMemory, byte[] stringIndexMemory, byte[] leveledBitmapsIndexMemory, long numLevels, int numLines) {
+    public SavedIndexBuilder(byte[] newlineIndexMemory, byte[] stringIndexMemory, byte[] leveledBitmapsIndexMemory, int numLevels, int numLines) {
         this.newlineIndexMemory = newlineIndexMemory;
         this.stringIndexMemory = stringIndexMemory;
         this.leveledBitmapsIndexMemory = leveledBitmapsIndexMemory;
@@ -29,7 +29,7 @@ public class SavedIndexBuilder implements Serializable {
         return leveledBitmapsIndexMemory;
     }
 
-    public long getNumLevels() {
+    public int getNumLevels() {
         return numLevels;
     }
 

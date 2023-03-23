@@ -82,7 +82,7 @@ public class DataLoader {
                 long endIndex = (i == partitions.size()-1) ? fileSize : partitions.get(i+1) - 1; //skip the newline character
                 fileBuffer[i] = channel.map(FileChannel.MapMode.READ_ONLY, startIndex, endIndex-startIndex);
                 fileBuffer[i].load();
-                dataBuilder[i] = new DataBuilder(cu, fileName, fileBuffer[i], endIndex-startIndex);
+                dataBuilder[i] = new DataBuilder(cu, fileName, fileBuffer[i], (int) (endIndex-startIndex));
             }
         } catch (IOException e) {
             CompilerDirectives.transferToInterpreter();
@@ -94,14 +94,14 @@ public class DataLoader {
 
     private DataBuilder loadFile(String fileName) {
         long start = System.nanoTime();
-        long fileSize;
+        int fileSize;
         Path filePath = Paths.get(fileName);
         try {
-            fileSize = Files.size(filePath);
-            if (fileSize > Integer.MAX_VALUE) {
+            if (Files.size(filePath) > Integer.MAX_VALUE) {
                 CompilerDirectives.transferToInterpreter();
                 throw new GpJSONException("Block mode cannot process files > 2GB");
             }
+            fileSize = (int) Files.size(filePath);
         } catch (IOException e) {
             CompilerDirectives.transferToInterpreter();
             throw new GpJSONException("Failed to get file size");
