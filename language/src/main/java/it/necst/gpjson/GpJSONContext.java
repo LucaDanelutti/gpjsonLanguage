@@ -37,4 +37,8 @@ public final class GpJSONContext {
     public static GpJSONContext get(Node node) {
         return TruffleLanguage.ContextReference.create(GpJSONLanguage.class).get(node);
     }
+
+    public void cleanup() {
+        engine.cleanup();
+    }
 }

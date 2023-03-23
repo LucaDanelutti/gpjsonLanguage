@@ -36,9 +36,8 @@ public class Engine implements TruffleObject {
     private static final String QUERY = "query";
     private static final String LOAD = "load";
     private static final String RESTORE = "restore";
-    private static final String CLOSE = "close";
 
-    private static final Set<String> MEMBERS = new HashSet<>(Arrays.asList(BUILDKERNELS, QUERY, LOAD, RESTORE, CLOSE));
+    private static final Set<String> MEMBERS = new HashSet<>(Arrays.asList(BUILDKERNELS, QUERY, LOAD, RESTORE));
 
     private final Context polyglot;
     private final Value cu;
@@ -58,6 +57,10 @@ public class Engine implements TruffleObject {
         LOGGER.log(Level.FINE, "grcuda context created");
         cu = polyglot.eval("grcuda", "CU");
         LOGGER.log(Level.FINE, "Engine created");
+    }
+
+    public void cleanup() {
+        polyglot.close();
     }
 
     private void buildKernels() {
@@ -179,13 +182,6 @@ public class Engine implements TruffleObject {
                 String index = InvokeUtils.expectString(arguments[1], "argument 2 of " + RESTORE + " must be a string");
                 return restore(file, index);
             }
-            case CLOSE:
-                if ((arguments.length != 0)) {
-                    CompilerDirectives.transferToInterpreter();
-                    throw ArityException.create(0, 0, arguments.length);
-                }
-                polyglot.close();
-                return this;
             default:
                 CompilerDirectives.transferToInterpreter();
                 throw UnknownIdentifierException.create(member);

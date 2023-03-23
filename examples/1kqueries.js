@@ -31,7 +31,6 @@ index.free();
 file.free();
 
 console.log("1k queries: " + count + " results in " + time + "s");
-engine.close();
 
 function sleep(millis) {
     return new Promise(resolve => setTimeout(resolve, millis));

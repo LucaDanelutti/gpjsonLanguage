@@ -26,5 +26,10 @@ public final class GpJSONLanguage extends TruffleLanguage<GpJSONContext> {
     public OptionDescriptors getOptionDescriptors() {
         return OptionDescriptors.createUnion(new GpJSONOptionsOptionDescriptors(), new GrCUDAOptionsOptionDescriptors());
     }
+
+    @Override
+    protected void finalizeContext(GpJSONContext context) {
+        context.cleanup();
+    }
 }
 

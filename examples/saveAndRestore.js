@@ -32,5 +32,3 @@ let savedResults = savedIndex.query("$.user.lang");
 console.log("saved index: " + count(savedResults) + " results");
 
 savedIndex.free()
-
-engine.close();

@@ -10,8 +10,6 @@ for (let i=0; i<5; i++) {
     console.log(results[0][i]);
 }
 
-engine.close();
-
 function sleep(millis) {
     return new Promise(resolve => setTimeout(resolve, millis));
 }
