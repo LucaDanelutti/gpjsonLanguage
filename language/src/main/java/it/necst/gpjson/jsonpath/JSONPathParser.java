@@ -36,7 +36,11 @@ public class JSONPathParser {
             case '[':
                 compileIndexExpression();
                 break;
+            case ' ':
+                // go back to compileFilterExpression()
+                return;
             default:
+                System.out.println("HOLA");
                 throw scanner.unsupportedNext("Unsupported expression type");
         }
     }
@@ -71,7 +75,7 @@ public class JSONPathParser {
                     scanner.expectChar(':');
                     int endIndex = readInteger(c -> c == ']');
                     scanner.expectChar(']');
-                    compileIndexRangeExpression(index, endIndex);
+                    compileIndexRangeExpression(index, endIndex, false);
                     return;
                 case ',':
                     List<Integer> indexes = new ArrayList<>();
@@ -93,8 +97,25 @@ public class JSONPathParser {
             if (scanner.peek() >= '0' && scanner.peek() <= '9') {
                 int index = readInteger(c -> c == ']');
                 scanner.expectChar(']');
-                compileIndexRangeExpression(0, index);
+                compileIndexRangeExpression(0, index, false);
                 return;
+            } else {
+                throw scanner.errorNext("Unexpected character in index, expected an integer");
+            }
+        } else if (scanner.peek() == '-') {
+            scanner.expectChar('-');
+            if (scanner.peek() >= '0' && scanner.peek() <= '9') {
+                int index = readInteger(c -> c == ']' || c == ':');
+                if (index == 0)
+                    throw scanner.error("Invalid reverse index 0");
+                if (scanner.peek() == ']')
+                    createReverseIndexIR(index);
+                else {
+                    scanner.expectChar(':');
+                    scanner.expectChar(']');
+                    compileIndexRangeExpression(0, index, true);
+                    return;
+                }
             } else if (scanner.peek() == '-') {
                 throw scanner.unsupportedNext("Unsupported last n elements of the array query");
             } else {
@@ -117,22 +138,31 @@ public class JSONPathParser {
         int maxMaxLevel = maxLevel;
         for (int j = 0; j < indexes.size(); j++) {
             Integer i = indexes.get(j);
-            maxMaxLevel = compileIndexAux(i, j == indexes.size()-1, maxMaxLevel);
+            maxMaxLevel = compileIndexAux(i, j == indexes.size()-1, maxMaxLevel, false);
         }
         maxLevel = maxMaxLevel + 1;
     }
 
-    private void compileIndexRangeExpression(int startIndex, int endIndex) throws JSONPathException {
+    private void compileIndexRangeExpression(int startIndex, int endIndex, boolean reverse) throws JSONPathException {
         int maxMaxLevel = maxLevel;
-        for (int i = startIndex; i < endIndex; i++) {
-            maxMaxLevel = compileIndexAux(i, i == endIndex-1, maxMaxLevel);
+        if (reverse) {
+            for (int i = endIndex; i > startIndex; i--) {
+                maxMaxLevel = compileIndexAux(i, i == startIndex+1, maxMaxLevel, true);
+            }
+        } else {
+            for (int i = startIndex; i < endIndex; i++) {
+                maxMaxLevel = compileIndexAux(i, i == endIndex-1, maxMaxLevel, false);
+            }
         }
         maxLevel = maxMaxLevel + 1;
     }
 
-    private int compileIndexAux(int index, boolean last, int maxMaxLevel) throws JSONPathException {
+    private int compileIndexAux(int index, boolean last, int maxMaxLevel, boolean reverse) throws JSONPathException {
         int startLevel = ir.getCurrentLevel();
-        ir.index(index);
+        if (reverse)
+            ir.reverseIndex(index);
+        else
+            ir.index(index);
         ir.down();
         scanner.mark();
         int currentMaxLevel = maxLevel;
@@ -158,22 +188,23 @@ public class JSONPathParser {
         scanner.expectChar('?');
         scanner.expectChar('(');
         scanner.expectChar('@');
-        while (scanner.skipIfChar(' ')) {
-            // Skip whitespace
+        ir.mark();
+        compileNextExpression();
+        while (scanner.peek() == ' ') {
+            scanner.skipIfChar(' ');
         }
-        switch (scanner.peek()) {
-            case '=':
-                scanner.expectChar('=');
-                scanner.expectChar('=');
-                while (scanner.skipIfChar(' ')) {
-                    // Skip whitespace
-                }
-                String equalTo = readQuotedString();
-                ir.expressionStringEquals(equalTo);
-                break;
-            default:
-                throw scanner.unsupportedNext("Unsupported character for expression");
+        if (scanner.peek() == '=') {
+            scanner.expectChar('=');
+            scanner.expectChar('=');
+            while (scanner.peek() == ' ') {
+                scanner.skipIfChar(' ');
+            }
+            String equalTo = readQuotedString();
+            ir.expressionStringEquals(equalTo);
+        } else {
+            throw scanner.unsupportedNext("Unsupported character for expression");
         }
+        ir.reset();
         scanner.expectChar(')');
     }
 
@@ -189,13 +220,17 @@ public class JSONPathParser {
         maxLevel++;
     }
 
+    private void createReverseIndexIR(int index) {
+        ir.reverseIndex(index);
+        ir.down();
+        maxLevel++;
+    }
+
     private String readProperty() throws JSONPathException {
         int startPosition = scanner.position();
         while (scanner.hasNext()) {
             char c = scanner.peek();
-            if (c == ' ') {
-                throw scanner.errorNext("Unexpected space");
-            } else if (c == '.' || c == '[') {
+            if (c == '.' || c == '[' || c == ' ') {
                 break;
             }
             scanner.next();

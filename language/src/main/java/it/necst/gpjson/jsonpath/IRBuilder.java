@@ -28,6 +28,12 @@ public class IRBuilder {
         return this;
     }
 
+    public IRBuilder reverseIndex(int index) {
+        buffer.writeOpcode(Opcode.MOVE_TO_INDEX_REVERSE);
+        buffer.writeVarInt(index);
+        return this;
+    }
+
     public IRBuilder down() {
         buffer.writeOpcode(Opcode.MOVE_DOWN);
         currentLevel++;
@@ -37,6 +43,16 @@ public class IRBuilder {
     public IRBuilder up() {
         buffer.writeOpcode(Opcode.MOVE_UP);
         currentLevel--;
+        return this;
+    }
+
+    public IRBuilder mark() {
+        buffer.writeOpcode(Opcode.MARK_POSITION);
+        return this;
+    }
+
+    public IRBuilder reset() {
+        buffer.writeOpcode(Opcode.RESET_POSITION);
         return this;
     }
 
