@@ -51,15 +51,15 @@ public class QueryExecutor {
         long start = System.nanoTime();
         long numberOfResults = compiledQuery.getNumResults();
         localStart = System.nanoTime();
-        UnsafeHelper.LongArray longArray = UnsafeHelper.createLongArray(resultMemory.getArraySize());
-        resultMemory.invokeMember("copyTo", longArray.getAddress());
+        UnsafeHelper.IntArray intArray = UnsafeHelper.createIntArray(resultMemory.getArraySize());
+        resultMemory.invokeMember("copyTo", intArray.getAddress());
         LOGGER.log(Level.FINEST, "copyTo() done in " + (System.nanoTime() - localStart) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         localStart = System.nanoTime();
         int[][] resultIndexes = new int[indexBuilder.getNumLines()][(int) numberOfResults * 2];
         for (int j = 0; j < indexBuilder.getNumLines(); j++) {
             for (int k = 0; k < numberOfResults*2; k+=2) {
-                resultIndexes[j][k] = (int) longArray.getValueAt(j*numberOfResults*2+ k);
-                resultIndexes[j][k+1] = (int) longArray.getValueAt(j*numberOfResults*2 + k + 1);
+                resultIndexes[j][k] = intArray.getValueAt(j*numberOfResults*2+ k);
+                resultIndexes[j][k+1] = intArray.getValueAt(j*numberOfResults*2 + k + 1);
             }
         }
         LOGGER.log(Level.FINEST, "resultIndexes() done in " + (System.nanoTime() - localStart) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
@@ -84,7 +84,7 @@ public class QueryExecutor {
         }
         LOGGER.log(Level.FINEST, "copyCompiledQuery() done in " + (System.nanoTime() - localStart) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         LOGGER.log(Level.FINEST, "compiledQuery: " + stringBuilder.toString());
-        resultMemory = cu.invokeMember("DeviceArray", "long", indexBuilder.getNumLines() * 2 * numberOfResults);
+        resultMemory = cu.invokeMember("DeviceArray", "int", indexBuilder.getNumLines() * 2 * numberOfResults);
         localStart = System.nanoTime();
         kernels.get("query").execute(gridSize, blockSize).execute(dataBuilder.getFileMemory(), dataBuilder.getFileSize(), indexBuilder.getNewlineIndexMemory(), indexBuilder.getNumLines(), indexBuilder.getStringIndexMemory(), indexBuilder.getLeveledBitmapsIndexMemory(), dataBuilder.getLevelSize(), queryMemory, compiledQuery.getNumResults(), resultMemory);
         LOGGER.log(Level.FINEST, "find_value() done in " + (System.nanoTime() - localStart) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");

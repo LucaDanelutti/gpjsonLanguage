@@ -22,7 +22,7 @@ public enum GpJSONKernel {
     CHAR_SUM_POST_SCAN("char-sum-post-scan", "f(charArr: in pointer char, n: sint32, stride: sint32, startingValue: char, base: out pointer char)", "it/necst/gpjson/kernels/char-sum-post-scan.cu"),
     CHAR_SUM_REBASE("char-sum-rebase", "f(charArr: in pointer char, n: sint32, base: in pointer char, offset: sint32, charNewArr: out pointer char)", "it/necst/gpjson/kernels/char-sum-rebase.cu"),
     LEVELED_BITMAPS("leveled-bitmaps-index", "f(file: in pointer char, fileSize: sint32, stringIndex: in pointer sint64, leveledBitmapsAuxIndex: in pointer sint8, leveledBitmapsIndex: out pointer sint64, levelSize: sint32, numLevels: sint32)", "it/necst/gpjson/kernels/leveled-bitmaps-index.cu"),
-    QUERY("query", "f(file: in pointer char, fileSize: sint32, newlineIndex: in pointer sint64, newlineIndexSize: sint32, stringIndex: in pointer sint64, leveledBitmapsIndex: in pointer sint64, levelSize: sint32, query: in pointer char, numResults: sint32, result: out pointer sint64)", "it/necst/gpjson/kernels/query.cu");
+    QUERY("query", "f(file: in pointer char, fileSize: sint32, newlineIndex: in pointer sint64, newlineIndexSize: sint32, stringIndex: in pointer sint64, leveledBitmapsIndex: in pointer sint64, levelSize: sint32, query: in pointer char, numResults: sint32, result: out pointer sint32)", "it/necst/gpjson/kernels/query.cu");
 
     private final String name;
     private final String parameterSignature;

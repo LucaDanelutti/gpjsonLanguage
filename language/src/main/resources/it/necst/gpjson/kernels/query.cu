@@ -42,25 +42,25 @@ __device__ int findPreviousStructuralChar(long *extIndex, int levelStart, int li
   return lineIndex;
 }
 
-__global__ void f(char *file, int fileSize, long *newlineIndex, int newlineIndexSize, long *stringIndex, long *leveledBitmapsIndex, long levelSize, char *query, int numResults, long *result) {
+__global__ void f(char *file, int fileSize, long *newlineIndex, int newlineIndexSize, long *stringIndex, long *leveledBitmapsIndex, int levelSize, char *query, int numResults, int *result) {
   int index = blockIdx.x * blockDim.x + threadIdx.x;
   int stride = blockDim.x * gridDim.x;
 
-  long linesPerThread = (newlineIndexSize+stride-1) / stride;
+  int linesPerThread = (newlineIndexSize+stride-1) / stride;
 
-  long start = index * linesPerThread;
-  long end = start + linesPerThread;
+  int start = index * linesPerThread;
+  int end = start + linesPerThread;
 
   // Initialization
-  long startInit = start * 2 * numResults;
-  long endInit = end * 2 * numResults;
-  for (long i = startInit; i < endInit && i < numResults * 2 * newlineIndexSize; i += 1) {
+  int startInit = start * 2 * numResults;
+  int endInit = end * 2 * numResults;
+  for (int i = startInit; i < endInit && i < numResults * 2 * newlineIndexSize; i += 1) {
     result[i] = -1;
   }
 
-  for (long fileIndex = start; fileIndex < end && fileIndex < newlineIndexSize; fileIndex += 1) {
-    long lineStart = newlineIndex[fileIndex];
-    long lineEnd = (fileIndex + 1 < newlineIndexSize) ? newlineIndex[fileIndex+1] : fileSize;
+  for (int fileIndex = start; fileIndex < end && fileIndex < newlineIndexSize; fileIndex += 1) {
+    int lineStart = newlineIndex[fileIndex];
+    int lineEnd = (fileIndex + 1 < newlineIndexSize) ? newlineIndex[fileIndex+1] : fileSize;
 
     while(file[lineEnd] != '}' && lineEnd > lineStart) {
       lineEnd--;
@@ -73,14 +73,14 @@ __global__ void f(char *file, int fileSize, long *newlineIndex, int newlineIndex
     if (lineStart == lineEnd)
       continue;
 
-    long lineIndex = lineStart;
+    int lineIndex = lineStart;
     assert(file[lineStart] == '{');
     assert(file[lineEnd] == '}');
 
     int currentLevel = 0;
     int queryPos = 0;
     char currentOpcode;
-    long levelEnd[MAX_NUM_LEVELS];
+    int levelEnd[MAX_NUM_LEVELS];
     levelEnd[0] = lineEnd;
     for (int j = 1; j < MAX_NUM_LEVELS; j++) {
       levelEnd[j] = -1;
@@ -111,7 +111,7 @@ __global__ void f(char *file, int fileSize, long *newlineIndex, int newlineIndex
           assert(numResultsIndex < numResults);
           // If we are storing a result, we are not in a string, so we can safely skip all whitespace
           // to find the start and the end of the actual value
-          long endStr = levelEnd[currentLevel];
+          int endStr = levelEnd[currentLevel];
           while(file[lineIndex] == ' ' && lineIndex < levelEnd[currentLevel]) {
             lineIndex++;
           }
@@ -136,7 +136,7 @@ __global__ void f(char *file, int fileSize, long *newlineIndex, int newlineIndex
           currentLevel++;
           // Now we need to find the end of this level, unless we already have one
           if (levelEnd[currentLevel] == -1) {
-            for (long endCandidate = lineIndex + 1; endCandidate <= levelEnd[currentLevel - 1]; endCandidate += 1) {
+            for (int endCandidate = lineIndex + 1; endCandidate <= levelEnd[currentLevel - 1]; endCandidate += 1) {
               long index = leveledBitmapsIndex[levelSize * (currentLevel - 1) + endCandidate / 64];
               if (index == 0) {
                 endCandidate += 64 - (endCandidate % 64) - 1;
@@ -177,14 +177,14 @@ __global__ void f(char *file, int fileSize, long *newlineIndex, int newlineIndex
             lineIndex = findNextStructuralChar(leveledBitmapsIndex, levelEnd[currentLevel], lineIndex, currentLevel, levelSize);
             assert(file[lineIndex] == ':' || file[lineIndex] == '}');
             if (file[lineIndex] == ':') {
-              long stringEnd = -1;
-              for (long endCandidate = lineIndex-1; endCandidate > lineStart; endCandidate--) {
+              int stringEnd = -1;
+              for (int endCandidate = lineIndex-1; endCandidate > lineStart; endCandidate--) {
                 if ((stringIndex[endCandidate / 64] & (1L << endCandidate % 64)) != 0) {
                   stringEnd = endCandidate;
                   break;
                 }
               }
-              long stringStart = stringEnd - keyLen;
+              int stringStart = stringEnd - keyLen;
               if (stringStart < lineStart || file[stringStart] != '"') {
                 lineIndex++;
                 lineIndex = findNextStructuralChar(leveledBitmapsIndex, levelEnd[currentLevel], lineIndex, currentLevel, levelSize);
@@ -337,18 +337,18 @@ __global__ void f(char *file, int fileSize, long *newlineIndex, int newlineIndex
           while(file[lineIndex] == ' ' && lineIndex < levelEnd[currentLevel]) {
             lineIndex++;
           }
-          long stringEnd = levelEnd[currentLevel] - 1;
+          int stringEnd = levelEnd[currentLevel] - 1;
           while(file[stringEnd] == ' ' && lineIndex < stringEnd) {
             stringEnd--;
           }
           assert(file[lineIndex] == '"' && file[stringEnd] == '"');
 
-          long stringLength = stringEnd - lineIndex + 1;
+          int stringLength = stringEnd - lineIndex + 1;
           if (stringLength != keyLen) {
             goto nextLine;
           }
 
-          for (long k = 0; k < keyLen; k++) {
+          for (int k = 0; k < keyLen; k++) {
             if (key[k] != file[lineIndex + k]) {
               goto nextLine;
             }

@@ -89,6 +89,38 @@ public class UnsafeHelper {
         }
     }
 
+    public static final class IntArray extends MemoryObject {
+        private final long numElements;
+
+        IntArray(long numElements) {
+            super(unsafe.allocateMemory(4 * numElements));
+            this.numElements = numElements;
+        }
+
+        IntArray(long address, int numElements) {
+            super(address);
+            this.numElements = numElements;
+        }
+
+        public int getValueAt(long index) {
+            if ((index < 0) || (index >= numElements)) {
+                throw new IllegalArgumentException(index + " is out of range");
+            }
+            return unsafe.getInt(getAddress() + 4*index);
+        }
+
+        public void setValueAt(long index, int value) {
+            if ((index < 0) || (index >= numElements)) {
+                throw new IllegalArgumentException(index + " is out of range");
+            }
+            unsafe.putInt(getAddress() + 4*index, value);
+        }
+    }
+
+    public static IntArray createIntArray(long numElements) {
+        return new IntArray(numElements);
+    }
+
     public static LongArray createLongArray(long numElements) {
         return new LongArray(numElements);
     }
