@@ -152,7 +152,7 @@ __global__ void f(char *file, int fileSize, long *newlineIndex, int newlineIndex
             while (file[lineIndex] == ' ') {
               lineIndex++;
             }
-            assert(file[lineIndex] == '{' || file[lineIndex] == '[' || file[lineIndex] == '"');
+            // assert(file[lineIndex] == '{' || file[lineIndex] == '[' || file[lineIndex] == '"');
           }
           break;
         }
@@ -246,7 +246,10 @@ __global__ void f(char *file, int fileSize, long *newlineIndex, int newlineIndex
               currIndex[currentLevel]--;
               goto searchIndex;
             } else {
-              lineIndex++;
+              if (file[lineIndex] == ']')
+                goto nextLine;
+              else
+                lineIndex++;
             }
           } else {
             goto nextLine;

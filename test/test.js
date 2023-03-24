@@ -19,6 +19,9 @@ test("$.store.book[3].category", []);
 test("$.store.bicycle.color", ["red","red"]);
 test("$.store.name", []);
 test("$.store.bicycle[?(@.color == 'red')].price", ["19.95","19.95"]);
+test("$.store.book[0:2].price", ["8.95", "8.99", "8.95", "8.99"]);
+test("$.store.book[0:3].price", ["8.95", "8.99", "22.99", "8.95", "8.99", "22.99"]);
+test("$.store.book[0:4].price", ["8.95", "8.99", "22.99", "8.95", "8.99", "22.99"]);
 
 function test(query, results) {
     let gpjson = queryGPJSON(query);
