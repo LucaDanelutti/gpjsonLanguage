@@ -177,9 +177,13 @@ public class IndexBuilder {
         start = System.nanoTime();
         this.createNewlineStringIndex(combined);
         LOGGER.log(Level.FINER, "createNewlineStringIndex() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+        LOGGER.log(Level.FINEST, "newlineIndex has a size of " + (float) newlineIndexMemory.getArraySize()*4/1048576 + "MB");
+        LOGGER.log(Level.FINEST, "stringIndex has a size of " + (float) stringIndexMemory.getArraySize()*8/1048576 + "MB");
         start = System.nanoTime();
         this.createLeveledBitmapsIndex();
         LOGGER.log(Level.FINER, "createLeveledBitmapsIndex() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
+        LOGGER.log(Level.FINEST, "createLeveledBitmapsIndex has a size of " + (float) leveledBitmapsIndexMemory.getArraySize()*8/1048576 + "MB");
+        
     }
 
     private void createNewlineStringIndex(boolean combined) {
