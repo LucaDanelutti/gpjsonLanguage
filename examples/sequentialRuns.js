@@ -3,8 +3,11 @@ let numRuns = 20;
 var engine = Polyglot.eval('gpjson', "GJ");
 engine.buildKernels();
 
+let dataset = "../datasets/twitter_small_records.json"
+let queries = ["$.user.lang"]
+
 //warmup
-engine.query("../datasets/twitter_small_records.json", ["$.user.lang"], true, false);
+engine.query(dataset, queries, true, false);
 
 let result = new Array();
 let count = new Array();
@@ -13,7 +16,7 @@ let time = new Array();
 let startTotal = performance.now();
 for (let k=0; k<numRuns; k++) {
     start = performance.now();
-    result[k] = engine.query("../datasets/twitter_small_records.json", ["$.user.lang"], true, false);
+    result[k] = engine.query(dataset, queries, true, false);
     time[k] = (performance.now() - start);
 }
 console.log("Avg: " + (performance.now() - startTotal) / numRuns + "ms");
