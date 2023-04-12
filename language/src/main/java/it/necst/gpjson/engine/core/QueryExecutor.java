@@ -43,7 +43,6 @@ public class QueryExecutor {
         queryMemory.invokeMember("free");
         resultMemory.invokeMember("free");
         LOGGER.log(Level.FINEST, "free(queryExecutor) done in " + (System.nanoTime() - localStart) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
-
     }
 
     public int[][] copyBuildResultArray() {

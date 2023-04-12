@@ -68,6 +68,7 @@ public class IndexBuilder {
 
     public void intermediateFree() {
         if (!isIntermediateFreed) {
+            long localStart = System.nanoTime();
             stringCarryIndexMemory.invokeMember("free");
             newlineCountIndexMemory.invokeMember("free");
             newlineIndexOffset.invokeMember("free");
@@ -78,6 +79,7 @@ public class IndexBuilder {
             carryIndexMemory.invokeMember("free");
             carryIndexMemoryWithOffset.invokeMember("free");
             charSumBase.invokeMember("free");
+            LOGGER.log(Level.FINEST, "intermediateFree(indexBuilder) done in " + (System.nanoTime() - localStart) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
 
             isIntermediateFreed = true;
         }
@@ -85,9 +87,11 @@ public class IndexBuilder {
 
     public void free() {
         if (!isFreed) {
+            long localStart = System.nanoTime();
             newlineIndexMemory.invokeMember("free");
             stringIndexMemory.invokeMember("free");
             leveledBitmapsIndexMemory.invokeMember("free");
+            LOGGER.log(Level.FINEST, "free(indexBuilder) done in " + (System.nanoTime() - localStart) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
 
             isFreed = true;
         }
@@ -183,7 +187,6 @@ public class IndexBuilder {
         this.createLeveledBitmapsIndex();
         LOGGER.log(Level.FINER, "createLeveledBitmapsIndex() done in " + (System.nanoTime() - start) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         LOGGER.log(Level.FINEST, "createLeveledBitmapsIndex has a size of " + (float) leveledBitmapsIndexMemory.getArraySize()*8/1048576 + "MB");
-        
     }
 
     private void createNewlineStringIndex(boolean combined) {
