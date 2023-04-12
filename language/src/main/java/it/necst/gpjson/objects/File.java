@@ -7,6 +7,7 @@ import com.oracle.truffle.api.library.ExportLibrary;
 import com.oracle.truffle.api.library.ExportMessage;
 import it.necst.gpjson.GpJSONException;
 import it.necst.gpjson.GpJSONLogger;
+import it.necst.gpjson.GpJSONOptionMap;
 import it.necst.gpjson.engine.core.DataBuilder;
 import it.necst.gpjson.engine.core.IndexBuilder;
 import it.necst.gpjson.utils.InvokeUtils;
@@ -38,6 +39,11 @@ public class File implements TruffleObject {
         this.cu = cu;
         this.kernels = kernels;
         this.dataBuilder = dataBuilder;
+        for (int i=0; i < dataBuilder.length; i++) {
+            cu.invokeMember("cudaSetDevice", i % GpJSONOptionMap.getNumberOfGPUs());
+            this.dataBuilder[i].load();
+        }
+        cu.invokeMember("cudaSetDevice", 0);
         this.numPartitions = numPartitions;
     }
 

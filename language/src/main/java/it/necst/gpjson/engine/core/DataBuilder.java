@@ -26,8 +26,10 @@ public class DataBuilder {
         this.fileName = fileName;
         this.fileBuffer = fileBuffer;
         this.fileSize = fileSize;
-        this.load();
-        this.levelSize = (int)(fileMemory.getArraySize() + 64 - 1) / 64;
+        this.levelSize = (fileSize + 64 - 1) / 64;
+        long localStart = System.nanoTime();
+        fileMemory = cu.invokeMember("DeviceArray", "char", fileSize);
+        LOGGER.log(Level.FINEST, "createDeviceArray() done in " + (System.nanoTime() - localStart) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
     }
 
     public void free() {
@@ -54,11 +56,8 @@ public class DataBuilder {
         return fileName;
     }
 
-    private void load() {
+    public void load() {
         long localStart = System.nanoTime();
-        fileMemory = cu.invokeMember("DeviceArray", "char", fileSize);
-        LOGGER.log(Level.FINEST, "createDeviceArray() done in " + (System.nanoTime() - localStart) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
-        localStart = System.nanoTime();
         UnsafeHelper.ByteArray byteArray = UnsafeHelper.createByteArray(fileBuffer);
         LOGGER.log(Level.FINEST, "createByteArray() done in " + (System.nanoTime() - localStart) / (double) TimeUnit.MILLISECONDS.toNanos(1) + "ms");
         localStart = System.nanoTime();

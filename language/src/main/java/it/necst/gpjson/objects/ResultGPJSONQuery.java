@@ -25,6 +25,18 @@ public class ResultGPJSONQuery extends ResultQuery implements TruffleObject {
         this.numberOfLines += numberOfLines;
     }
 
+    public void addPartitions(ResultQuery resultQuery) {
+        ResultGPJSONQuery resultGPJSONQuery = (ResultGPJSONQuery) resultQuery;
+        long prev = 0;
+        Long[] keySet = resultGPJSONQuery.lines.keySet().toArray(new Long[0]);
+        for (int i=0; i < keySet.length; i++) {
+            this.lines.put(this.numberOfLines, resultGPJSONQuery.lines.get(keySet[i]));
+            long numberOfLines = (i == keySet.length-1) ? resultGPJSONQuery.numberOfLines : keySet[i+1];
+            this.numberOfLines += numberOfLines-prev;
+            prev = numberOfLines;
+        }
+    }
+
     @ExportMessage
     @SuppressWarnings("unused")
     public boolean hasArrayElements() {

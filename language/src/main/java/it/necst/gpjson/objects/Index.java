@@ -113,8 +113,8 @@ public class Index implements TruffleObject {
         ResultGPJSONQuery result;
         result = new ResultGPJSONQuery();
         QueryExecutor[] queryExecutor = new QueryExecutor[numPartitions];
-        int stride = 10;
-        for (int s=0; s < numPartitions/10 + 1; s++) {
+        int stride = GpJSONOptionMap.getStride();
+        for (int s=0; s < numPartitions/stride + 1; s++) {
             int strideStart = s * stride;
             int strideEnd = Math.min((s+1) * stride, numPartitions);
             for (int i=strideStart; i < strideEnd; i++) {

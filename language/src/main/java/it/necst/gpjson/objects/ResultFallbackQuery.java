@@ -17,6 +17,11 @@ public class ResultFallbackQuery extends ResultQuery implements TruffleObject {
         this.values = values;
     }
 
+    public void addPartitions(ResultQuery resultQuery) {
+        ResultFallbackQuery resultFallbackQuery = (ResultFallbackQuery) resultQuery;
+        this.values.addAll(resultFallbackQuery.values);
+    }
+
     @ExportMessage
     @SuppressWarnings("unused")
     public boolean hasArrayElements() {

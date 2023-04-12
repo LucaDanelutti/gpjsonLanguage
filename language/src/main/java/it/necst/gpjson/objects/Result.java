@@ -18,6 +18,13 @@ public class Result implements TruffleObject {
         this.resultQueries = new ArrayList<>();
     }
 
+    public void merge(Result result) {
+        for (int i = 0; i < resultQueries.size(); i++) {
+            ResultQuery resultQuery = resultQueries.get(i);
+            resultQuery.addPartitions(result.resultQueries.get(i));
+        }
+    }
+
     public void addQuery(ResultQuery query) {
         resultQueries.add(query);
     }

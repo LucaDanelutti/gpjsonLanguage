@@ -5,10 +5,8 @@ import com.oracle.truffle.api.TruffleLogger;
 import com.oracle.truffle.api.interop.*;
 import com.oracle.truffle.api.library.ExportLibrary;
 import com.oracle.truffle.api.library.ExportMessage;
-import it.necst.gpjson.GpJSONException;
-import it.necst.gpjson.GpJSONInternalException;
-import it.necst.gpjson.GpJSONLogger;
-import it.necst.gpjson.GpJSONOptionMap;
+import it.necst.gpjson.*;
+import it.necst.gpjson.engine.core.DataBuilder;
 import it.necst.gpjson.engine.core.DataLoader;
 import it.necst.gpjson.engine.core.QueryCompiler;
 import it.necst.gpjson.engine.disk.SavedIndex;
@@ -92,14 +90,36 @@ public class Engine implements TruffleObject {
     }
 
     private Result query(String fileName, String[] queries, boolean combined, boolean batched) {
-        File file = load(fileName, batched);
         QueryCompiler queryCompiler = new QueryCompiler(queries);
         JSONPathQuery[] compiledQueries = queryCompiler.getCompiledQueries();
-        Index index = file.index(queryCompiler.getMaxDepth(), combined);
-        Result result = index.query(queries, compiledQueries);
-        index.free();
-        file.free();
-        return result;
+        DataLoader dataLoader;
+        if (batched) {
+            dataLoader = new DataLoader(cu, kernels, fileName, partitionSize);
+            DataBuilder[] dataBuilder = dataLoader.getDataBuilder();
+            Result result = null;
+            int stride = GpJSONOptionMap.getStride();
+            for (int s=0; s < dataLoader.getNumPartitions()/stride + 1; s++) {
+                int startPart = s*stride;
+                int endPart = Math.min((s+1)*stride, dataLoader.getNumPartitions());
+                File file = new File(cu, kernels, Arrays.copyOfRange(dataBuilder, startPart, endPart), (endPart-startPart));
+                Index index = file.index(queryCompiler.getMaxDepth(), combined);
+                if (result == null)
+                    result = index.query(queries, compiledQueries);
+                else
+                    result.merge(index.query(queries, compiledQueries));
+                index.free();
+                file.free();
+            }
+            return result;
+        } else {
+            dataLoader = new DataLoader(cu, kernels, fileName, 0);
+            File file = new File(cu, kernels, dataLoader.getDataBuilder(), dataLoader.getNumPartitions());
+            Index index = file.index(queryCompiler.getMaxDepth(), combined);
+            Result result =  index.query(queries, compiledQueries);
+            index.free();
+            file.free();
+            return result;
+        }
     }
 
     private File load(String fileName, boolean batched) {

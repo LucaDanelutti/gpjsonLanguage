@@ -13,7 +13,7 @@ public final class GpJSONOptions {
     public static final OptionKey<Integer> PartitionSize = new OptionKey<>((int) (1 * Math.pow(2, 30)));
 
     @Option(category = OptionCategory.USER, help = "Set stride for batch mode", stability = OptionStability.STABLE)
-    public static final OptionKey<Integer> Stride = new OptionKey<>(10);
+    public static final OptionKey<Integer> Stride = new OptionKey<>(8);
 
     @Option(category = OptionCategory.USER, help = "Set grid size for index construction", stability = OptionStability.STABLE)
     public static final OptionKey<Integer> IndexBuilderGridSize = new OptionKey<>(1024*16);

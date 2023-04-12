@@ -33,7 +33,7 @@ public class GpJSONOptionMap implements TruffleObject {
     }
 
     public static int getStride() {
-        return (Integer) getOptionValueFromOptionKey(GpJSONOptions.PartitionSize);
+        return (Integer) getOptionValueFromOptionKey(GpJSONOptions.Stride);
     }
 
     public static int getNumberOfGPUs() {
