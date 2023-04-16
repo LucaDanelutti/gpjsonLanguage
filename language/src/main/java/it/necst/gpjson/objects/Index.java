@@ -100,6 +100,8 @@ public class Index implements TruffleObject {
     private ResultQuery doQuery(String query, JSONPathQuery compiledQuery) {
         ResultQuery result;
         if (compiledQuery != null) {
+            if (compiledQuery.getMaxDepth() > indexBuilder[0].getNumLevels())
+                throw new GpJSONException("Query " + query + "requires " + compiledQuery.getMaxDepth() + "levels, but index has " + indexBuilder[0].getNumLevels());
             result = doGPJSONQuery(compiledQuery);
             LOGGER.log(Level.FINE, query + " executed successfully");
         } else {
